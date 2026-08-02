@@ -1,0 +1,58 @@
+# =========================
+# Rust
+# =========================
+
+# Build outputs
+/target/
+
+# Backups
+*.rs.bk
+
+# Coverage
+coverage/
+*.profraw
+*.profdata
+
+# ==========================
+# IDEs
+# ==========================
+
+# JetBrains
+.idea/
+
+# Visual Studio Code
+.vscode/
+
+# Visual Studio
+.vs/
+
+# Fleet
+.fleet/
+
+# Zed
+.zed/
+
+# Cursor
+.cursor/
+
+# Eclipse
+.project
+.classpath
+.settings/
+
+# ==========================
+# Operating Systems
+# ==========================
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# Linux
+*~
+.nfs*

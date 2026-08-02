@@ -1,0 +1,54 @@
+# Normalize all text files to LF in the repository
+* text=auto eol=lf
+
+# Rust
+*.rs text eol=lf
+*.toml text eol=lf
+*.lock text eol=lf
+
+# Documentation
+*.md text eol=lf
+*.txt text eol=lf
+*.adoc text eol=lf
+
+# Config
+*.yml text eol=lf
+*.yaml text eol=lf
+*.json text eol=lf
+*.jsonc text eol=lf
+*.ron text eol=lf
+*.cfg text eol=lf
+*.ini text eol=lf
+
+# Shell
+*.sh text eol=lf
+
+# PowerShell
+*.ps1 text eol=crlf
+
+# Binary files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.bmp binary
+*.svg text eol=lf
+
+*.pdf binary
+*.zip binary
+*.gz binary
+*.xz binary
+*.7z binary
+*.rar binary
+
+*.exe binary
+*.dll binary
+*.so binary
+*.dylib binary
+
+*.ttf binary
+*.otf binary
+*.woff binary
+*.woff2 binary
