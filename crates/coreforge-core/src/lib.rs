@@ -1,14 +1,12 @@
 //! `coreforge-core`
 //!
-//! Diger tum coreforge crate'lerinin bagimli oldugu ortak tipler burada yasar:
-//! `Module`, `ModuleId`, `ModuleType` ve paylasilan `Error` enum'u.
-//!
-//! NOT: Bu crate henuz iskelet asamasinda (Faz 0). `Module` ve `ModuleType`
-//! Faz 1 (Project Inspector) ve Faz 2 (Manifest) ile birlikte doldurulacak.
-
+//! Common types that all other coreforge crates depend on reside here:
+//! `Module`, `ModuleId`, `ModuleType` and the shared `Error` enum. //!
+//! NOTE: This crate is still in the skeleton stage (Phase 0). `Module` and `ModuleType`
+//! will be populated along with Phase 1 (Project Inspector) and Phase 2 (Manifest).
 use serde::{Deserialize, Serialize};
 
-/// Bir build modulunun benzersiz kimligi (ornegin "engine-rust", "editor-qt").
+/// The unique identifier of a build module (e.g., "engine-rust", "editor-qt").
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ModuleId(pub String);
 
@@ -18,8 +16,8 @@ impl std::fmt::Display for ModuleId {
     }
 }
 
-/// Bir modulun hangi toolchain ile derlendigini belirtir.
-/// Faz 5 (Tool Adapter) ile genisletilecek.
+/// Specifies which toolchain a module was compiled with.
+/// To be expanded with Phase 5 (Tool Adapter).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ModuleType {
     Cargo,
@@ -31,16 +29,16 @@ pub enum ModuleType {
     Python,
 }
 
-/// CoreForge genelinde paylasilan hata tipi.
+/// This is a bug type shared across CoreForge.
 #[derive(Debug, thiserror::Error)]
 pub enum CoreForgeError {
-    #[error("modul bulunamadi: {0}")]
+    #[error("Module not found: {0}")]
     ModuleNotFound(String),
 
-    #[error("gecersiz manifest: {0}")]
+    #[error("Invalid manifest: {0}")]
     InvalidManifest(String),
 
-    #[error("io hatasi: {0}")]
+    #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
 }
 

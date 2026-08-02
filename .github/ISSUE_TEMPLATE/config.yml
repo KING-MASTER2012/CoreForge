@@ -1,0 +1,10 @@
+blank_issues_enabled: false
+
+contact_links:
+    - name: 💬 Discussions
+      url: https://github.com/KING-MASTER2012/CoreForge/discussions
+      about: Ask questions, share ideas, or start discussions.
+
+    - name: 📖 Documentation
+      url: https://github.com/KING-MASTER2012/CoreForge/wiki
+      about: Check the documentation before opening an issue.

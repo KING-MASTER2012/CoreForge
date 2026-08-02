@@ -1,0 +1,33 @@
+name: CI / Build Issue
+description: Report problems related to CI, workflows, or automation.
+title: "[CI]: "
+labels:
+    - ci
+
+body:
+    - type: textarea
+      id: workflow
+      attributes:
+          label: Workflow
+          description: Which workflow failed?
+          placeholder: ci.yml, lint.yml, release.yml...
+      validations:
+          required: true
+
+    - type: textarea
+      id: logs
+      attributes:
+          label: Build Log
+          render: shell
+
+    - type: textarea
+      id: description
+      attributes:
+          label: Description
+      validations:
+          required: true
+
+    - type: input
+      id: commit
+      attributes:
+          label: Commit SHA

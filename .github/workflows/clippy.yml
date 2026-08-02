@@ -1,0 +1,28 @@
+name: Clippy
+
+on:
+    pull_request:
+    push:
+        branches:
+            - main
+            - develop
+
+permissions:
+    contents: read
+
+jobs:
+    clippy:
+        runs-on: ubuntu-latest
+
+        steps:
+            - uses: actions/checkout@v5
+
+            - uses: dtolnay/rust-toolchain@master
+              with:
+                  toolchain: "1.97.1"
+                  components: clippy
+
+            - uses: Swatinem/rust-cache@v2
+
+            - name: Run Clippy
+              run: cargo clippy --workspace --all-targets --all-features

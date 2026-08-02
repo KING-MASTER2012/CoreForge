@@ -1,0 +1,78 @@
+name: Bug Report
+description: Report an unexpected behavior or defect.
+title: "[Bug]: "
+labels:
+    - bug
+
+body:
+    - type: markdown
+      attributes:
+          value: |
+              Thank you for helping improve CoreForge.
+
+    - type: textarea
+      id: description
+      attributes:
+          label: Bug Description
+          description: Describe the bug clearly.
+          placeholder: What happened?
+      validations:
+          required: true
+
+    - type: textarea
+      id: reproduce
+      attributes:
+          label: Steps to Reproduce
+          placeholder: |
+              1.
+              2.
+              3.
+      validations:
+          required: true
+
+    - type: textarea
+      id: expected
+      attributes:
+          label: Expected Behavior
+
+    - type: textarea
+      id: actual
+      attributes:
+          label: Actual Behavior
+
+    - type: textarea
+      id: logs
+      attributes:
+          label: Logs or Error Messages
+          render: shell
+
+    - type: input
+      id: version
+      attributes:
+          label: CoreForge Version
+          placeholder: v0.1.0
+
+    - type: input
+      id: rust
+      attributes:
+          label: Rust Version
+          placeholder: rustc 1.xx.x
+
+    - type: textarea
+      id: environment
+      attributes:
+          label: Environment
+          placeholder: |
+              OS:
+              CPU:
+              Architecture:
+
+    - type: checkboxes
+      id: checklist
+      attributes:
+          label: Checklist
+          options:
+              - label: I searched for existing issues.
+                required: true
+              - label: I can reproduce this issue.
+                required: true

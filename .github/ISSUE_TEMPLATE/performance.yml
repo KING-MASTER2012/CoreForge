@@ -1,0 +1,28 @@
+name: Performance Issue
+description: Report performance regressions or bottlenecks.
+title: "[Performance]: "
+labels:
+    - performance
+
+body:
+    - type: textarea
+      id: description
+      attributes:
+          label: Performance Problem
+      validations:
+          required: true
+
+    - type: textarea
+      id: benchmark
+      attributes:
+          label: Benchmark Results
+
+    - type: textarea
+      id: profiling
+      attributes:
+          label: Profiling Information
+
+    - type: textarea
+      id: suggestions
+      attributes:
+          label: Possible Improvements

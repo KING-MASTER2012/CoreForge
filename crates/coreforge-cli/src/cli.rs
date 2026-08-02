@@ -1,8 +1,8 @@
-//! Command Parser (Faz 0).
+//! Command Parser
 //!
-//! Bu modul yalnizca komut satirini okur ve yapilandirilmis bir `Cli` degerine
-//! cevirir. Henuz hicbir sey derlenmez, taranmaz ya da calistirilmaz -
-//! Project Inspector (Faz 1) ve sonrasi bu isi devralacak.
+//! This module only reads the command line and translates it into a configured `Cli` value.
+//! Nothing is compiled, scanned, or executed yet -
+//! Project Inspector (Phase 1) and later will take over this.
 
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
@@ -15,12 +15,13 @@ use std::path::PathBuf;
     long_about = None
 )]
 pub struct Cli {
-    /// Ayrintili (verbose) log ciktisi.
+    /// Detailed (verbose) log output.
     #[arg(short, long, global = true)]
     pub verbose: bool,
 
-    /// Kullanilacak build-system.toml dosyasinin yolu. Belirtilmezse repo
-    /// kokunde otomatik aranir (Faz 8'de uygulanacak).
+    /// Path to the build-system.toml file to be used.
+    /// If not specified, the repository will be automatically
+    /// searched for (to be implemented in Phase 8).
     #[arg(long, global = true, value_name = "PATH")]
     pub config: Option<PathBuf>,
 
@@ -30,18 +31,18 @@ pub struct Cli {
 
 #[derive(Debug, Subcommand)]
 pub enum Command {
-    /// Modulleri derler.
+    /// It compiles the modules.
     Build(BuildArgs),
 
-    /// Modullerin testlerini calistirir.
+    /// It runs tests for the modules.
     Test(BuildArgs),
 
-    /// Derlenen ciktilari paketler.
+    /// The compiled outputs are packaged.
     Package(BuildArgs),
 
-    /// Build ciktilarini (build/) temizler.
+    /// Cleans up build output (build/).
     Clean {
-        /// Sadece belirtilen modulu temizle. Belirtilmezse tumu temizlenir.
+        /// Clear only the specified module. If no module is specified, all will be cleared.
         #[arg(value_name = "MODULE")]
         module: Option<String>,
     },
@@ -49,19 +50,19 @@ pub enum Command {
 
 #[derive(Debug, clap::Args)]
 pub struct BuildArgs {
-    /// Sadece belirtilen modul(ler)i hedefle. Belirtilmezse tum modul grafi islenir.
+    /// Target only the specified module(s). If not specified, the entire module graph will be processed.
     #[arg(value_name = "MODULE")]
     pub modules: Vec<String>,
 
-    /// Release konfigurasyonu ile derle (varsayilan: Debug).
+    /// Compile with Release configuration (default: Debug).
     #[arg(long)]
     pub release: bool,
 
-    /// Hicbir komutu gercekten calistirma, sadece build plani goster.
+    /// Don't actually run any commands, just show the build plan.
     #[arg(long)]
     pub dry_run: bool,
 
-    /// Paralel is sayisi. Belirtilmezse build-system.toml / CPU sayisi kullanilir.
+    /// Number of parallel jobs. If not specified, the build-system.toml / CPU count will be used.
     #[arg(short = 'j', long, value_name = "N")]
     pub jobs: Option<usize>,
 }

@@ -1,0 +1,23 @@
+name: Question
+description: Ask a question about CoreForge.
+title: "[Question]: "
+labels:
+    - question
+
+body:
+    - type: textarea
+      id: question
+      attributes:
+          label: Question
+      validations:
+          required: true
+
+    - type: textarea
+      id: context
+      attributes:
+          label: Context
+
+    - type: textarea
+      id: tried
+      attributes:
+          label: What Have You Tried?

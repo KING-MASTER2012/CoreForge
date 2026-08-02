@@ -1,0 +1,25 @@
+name: Documentation
+description: Report documentation issues or suggest improvements.
+title: "[Docs]: "
+labels:
+    - documentation
+
+body:
+    - type: textarea
+      id: issue
+      attributes:
+          label: Documentation Issue
+          description: What is missing, incorrect, or unclear?
+      validations:
+          required: true
+
+    - type: textarea
+      id: proposal
+      attributes:
+          label: Suggested Improvement
+
+    - type: input
+      id: location
+      attributes:
+          label: Documentation Location
+          placeholder: README.md, CONTRIBUTING.md, docs/build.md...

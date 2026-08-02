@@ -1,0 +1,28 @@
+name: Rustfmt
+
+on:
+    pull_request:
+    push:
+        branches:
+            - main
+            - develop
+
+permissions:
+    contents: read
+
+jobs:
+    fmt:
+        runs-on: ubuntu-latest
+
+        steps:
+            - uses: actions/checkout@v5
+
+            - uses: dtolnay/rust-toolchain@master
+              with:
+                  toolchain: "1.97.1"
+                  components: rustfmt
+
+            - uses: Swatinem/rust-cache@v2
+
+            - name: Check formatting
+              run: cargo fmt --all --check

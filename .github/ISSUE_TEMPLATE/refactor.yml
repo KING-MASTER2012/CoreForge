@@ -1,0 +1,33 @@
+name: Refactoring Proposal
+description: Suggest improvements to existing code without changing behavior.
+title: "[Refactor]: "
+labels:
+    - refactor
+
+body:
+    - type: textarea
+      id: current
+      attributes:
+          label: Current Implementation
+      validations:
+          required: true
+
+    - type: textarea
+      id: proposal
+      attributes:
+          label: Proposed Refactoring
+      validations:
+          required: true
+
+    - type: textarea
+      id: benefits
+      attributes:
+          label: Benefits
+
+    - type: checkboxes
+      id: checklist
+      attributes:
+          label: Checklist
+          options:
+              - label: This proposal does not introduce new functionality.
+                required: true
