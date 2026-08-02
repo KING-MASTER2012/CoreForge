@@ -1,13 +1,21 @@
 //! `coreforge-core`
 //!
-//! Common types that all other coreforge crates depend on reside here:
-//! `Module`, `ModuleId`, `ModuleType` and the shared `Error` enum. //!
-//! NOTE: This crate is still in the skeleton stage (Phase 0). `Module` and `ModuleType`
-//! will be populated along with Phase 1 (Project Inspector) and Phase 2 (Manifest).
+//! Common types shared by every other CoreForge crate: [`Module`], [`ModuleId`],
+//! [`ModuleType`], and the shared [`CoreForgeError`] enum.
+//!
+//! This crate intentionally has no dependency on any other `coreforge-*` crate -
+//! it sits at the bottom of the dependency graph.
+
+use camino::Utf8PathBuf;
 use serde::{Deserialize, Serialize};
 
-/// The unique identifier of a build module (e.g., "engine-rust", "editor-qt").
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+/// The unique identifier of a build module (e.g. `"engine"`, `"editor"`).
+///
+/// For modules discovered by the Project Inspector (Phase 1), this is derived
+/// from the module's path relative to the repository root. Once the Manifest
+/// parser (Phase 2) lands, a module may override its id explicitly via
+/// `coreforge.toml`.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct ModuleId(pub String);
 
 impl std::fmt::Display for ModuleId {
@@ -16,30 +24,90 @@ impl std::fmt::Display for ModuleId {
     }
 }
 
-/// Specifies which toolchain a module was compiled with.
-/// To be expanded with Phase 5 (Tool Adapter).
+impl From<String> for ModuleId {
+    fn from(value: String) -> Self {
+        Self(value)
+    }
+}
+
+impl From<&str> for ModuleId {
+    fn from(value: &str) -> Self {
+        Self(value.to_string())
+    }
+}
+
+/// The toolchain a module is built with.
+///
+/// This determines which Tool Adapter (Phase 5, `coreforge-toolchain`) is
+/// responsible for building the module.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ModuleType {
+    /// A Rust crate or workspace, identified by `Cargo.toml`.
     Cargo,
+    /// A CMake project, identified by `CMakeLists.txt`.
     CMake,
+    /// A plain Node.js/npm package, identified by `package.json`.
     Npm,
+    /// A Tauri application, identified by `package.json` plus a `src-tauri/` directory.
     Tauri,
+    /// A Go module, identified by `go.mod`.
     Go,
+    /// A SQL migration set (schema/seed/validate). Not yet auto-detected by the
+    /// Project Inspector; expected to be declared explicitly via `coreforge.toml`.
     Sql,
+    /// A Python package, identified by `pyproject.toml` or `requirements.txt`.
     Python,
 }
 
-/// This is a bug type shared across CoreForge.
+impl std::fmt::Display for ModuleType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let label = match self {
+            Self::Cargo => "Cargo",
+            Self::CMake => "CMake",
+            Self::Npm => "Npm",
+            Self::Tauri => "Tauri",
+            Self::Go => "Go",
+            Self::Sql => "Sql",
+            Self::Python => "Python",
+        };
+        write!(f, "{label}")
+    }
+}
+
+/// A build module discovered in, or declared for, the target repository.
+///
+/// Populated by the Project Inspector (Phase 1) today; will later be enriched
+/// by the Manifest parser (Phase 2) with explicit `depends`, packaging
+/// behavior, and other `coreforge.toml`-specific fields.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Module {
+    /// The module's unique identifier.
+    pub id: ModuleId,
+    /// The module's root directory, relative to the repository root.
+    pub root: Utf8PathBuf,
+    /// The toolchain used to build this module.
+    pub module_type: ModuleType,
+}
+
+/// The error type shared across all CoreForge crates.
 #[derive(Debug, thiserror::Error)]
 pub enum CoreForgeError {
-    #[error("Module not found: {0}")]
+    /// A module with the given id could not be found.
+    #[error("module not found: {0}")]
     ModuleNotFound(String),
 
-    #[error("Invalid manifest: {0}")]
+    /// A manifest file failed to parse or was semantically invalid.
+    #[error("invalid manifest: {0}")]
     InvalidManifest(String),
 
-    #[error("IO error: {0}")]
+    /// A path was expected to be valid UTF-8 but was not.
+    #[error("path is not valid UTF-8: {0}")]
+    NonUtf8Path(String),
+
+    /// A wrapped I/O error.
+    #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
 }
 
+/// A convenience alias for `Result<T, CoreForgeError>`.
 pub type Result<T> = std::result::Result<T, CoreForgeError>;

@@ -1,29 +1,32 @@
-//! Command Parser
+//! Command Parser (Phase 0).
 //!
-//! This module only reads the command line and translates it into a configured `Cli` value.
-//! Nothing is compiled, scanned, or executed yet -
-//! Project Inspector (Phase 1) and later will take over this.
+//! This module only reads the command line and turns it into a structured
+//! [`Cli`] value. Nothing is built, scanned, or executed here - the Project
+//! Inspector (Phase 1) and later phases own that work.
 
+use camino::Utf8PathBuf;
 use clap::{Parser, Subcommand};
-use std::path::PathBuf;
 
 #[derive(Debug, Parser)]
 #[command(
     name = "coreforge",
     version,
-    about = "CoreForge - CoreVerse Engine icin build orchestrator",
+    about = "CoreForge - build orchestrator for CoreVerse Engine",
     long_about = None
 )]
 pub struct Cli {
-    /// Detailed (verbose) log output.
+    /// Enable verbose logging.
     #[arg(short, long, global = true)]
     pub verbose: bool,
 
-    /// Path to the build-system.toml file to be used.
-    /// If not specified, the repository will be automatically
-    /// searched for (to be implemented in Phase 8).
+    /// Path to the target repository root. Defaults to the current directory.
+    #[arg(long, global = true, value_name = "PATH", default_value = ".")]
+    pub root: Utf8PathBuf,
+
+    /// Path to a `build-system.toml` file. If unset, it is auto-discovered
+    /// relative to `--root` (to be implemented in Phase 8).
     #[arg(long, global = true, value_name = "PATH")]
-    pub config: Option<PathBuf>,
+    pub config: Option<Utf8PathBuf>,
 
     #[command(subcommand)]
     pub command: Command,
@@ -31,38 +34,44 @@ pub struct Cli {
 
 #[derive(Debug, Subcommand)]
 pub enum Command {
-    /// It compiles the modules.
+    /// Build modules.
     Build(BuildArgs),
 
-    /// It runs tests for the modules.
+    /// Run modules' tests.
     Test(BuildArgs),
 
-    /// The compiled outputs are packaged.
+    /// Package built artifacts.
     Package(BuildArgs),
 
-    /// Cleans up build output (build/).
+    /// Remove build outputs (`build/`).
     Clean {
-        /// Clear only the specified module. If no module is specified, all will be cleared.
+        /// Only clean the given module. If unset, everything is cleaned.
         #[arg(value_name = "MODULE")]
         module: Option<String>,
     },
+
+    /// Walk the target repository and list discovered modules, without
+    /// building anything. Useful for verifying the Project Inspector's
+    /// output (Phase 1).
+    Inspect,
 }
 
 #[derive(Debug, clap::Args)]
 pub struct BuildArgs {
-    /// Target only the specified module(s). If not specified, the entire module graph will be processed.
+    /// Only target the given module(s). If unset, the whole module graph is processed.
     #[arg(value_name = "MODULE")]
     pub modules: Vec<String>,
 
-    /// Compile with Release configuration (default: Debug).
+    /// Build with the Release configuration (default: Debug).
     #[arg(long)]
     pub release: bool,
 
-    /// Don't actually run any commands, just show the build plan.
+    /// Do not actually run any command; only print the build plan.
     #[arg(long)]
     pub dry_run: bool,
 
-    /// Number of parallel jobs. If not specified, the build-system.toml / CPU count will be used.
+    /// Number of parallel jobs. If unset, falls back to `build-system.toml`
+    /// or the number of available CPUs.
     #[arg(short = 'j', long, value_name = "N")]
     pub jobs: Option<usize>,
 }
