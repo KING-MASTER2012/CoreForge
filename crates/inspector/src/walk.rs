@@ -49,7 +49,10 @@ pub struct InspectConfig {
 impl Default for InspectConfig {
     fn default() -> Self {
         Self {
-            ignored_dirs: DEFAULT_IGNORED_DIRS.iter().map(|s| (*s).to_string()).collect(),
+            ignored_dirs: DEFAULT_IGNORED_DIRS
+                .iter()
+                .map(|s| (*s).to_string())
+                .collect(),
             max_depth: 6,
         }
     }
@@ -68,15 +71,16 @@ impl Default for InspectConfig {
 /// a directory, [`InspectorError::NonUtf8Path`] if a discovered path is not
 /// valid UTF-8, and [`InspectorError::Walk`] on directory-read failures
 /// (permission errors, broken symlinks, etc.).
-pub fn inspect_repository(root: &Utf8Path, config: &InspectConfig) -> Result<Vec<DiscoveredModule>> {
+pub fn inspect_repository(
+    root: &Utf8Path,
+    config: &InspectConfig,
+) -> Result<Vec<DiscoveredModule>> {
     if !root.is_dir() {
         return Err(InspectorError::InvalidRoot(root.to_string()));
     }
 
     let mut discovered = Vec::new();
-    let mut walker = WalkDir::new(root)
-        .max_depth(config.max_depth)
-        .into_iter();
+    let mut walker = WalkDir::new(root).max_depth(config.max_depth).into_iter();
 
     while let Some(entry) = walker.next() {
         let entry = entry?;
@@ -87,7 +91,9 @@ pub fn inspect_repository(root: &Utf8Path, config: &InspectConfig) -> Result<Vec
 
         let path = entry.path();
         let Some(utf8_path) = Utf8Path::from_path(path) else {
-            return Err(InspectorError::NonUtf8Path(path.to_string_lossy().into_owned()));
+            return Err(InspectorError::NonUtf8Path(
+                path.to_string_lossy().into_owned(),
+            ));
         };
 
         // The repository root itself is never skipped by the ignore list,
@@ -125,5 +131,6 @@ fn module_id_for(root: &Utf8Path, dir: &Utf8Path) -> ModuleId {
 }
 
 fn relative_to(root: &Utf8Path, dir: &Utf8Path) -> Utf8PathBuf {
-    dir.strip_prefix(root).map_or_else(|_| dir.to_path_buf(), Utf8Path::to_path_buf)
+    dir.strip_prefix(root)
+        .map_or_else(|_| dir.to_path_buf(), Utf8Path::to_path_buf)
 }

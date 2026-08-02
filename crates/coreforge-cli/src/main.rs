@@ -49,7 +49,10 @@ fn print_build_args(args: &cli::BuildArgs) {
     } else {
         println!("  target module(s): {}", args.modules.join(", "));
     }
-    println!("  configuration: {}", if args.release { "Release" } else { "Debug" });
+    println!(
+        "  configuration: {}",
+        if args.release { "Release" } else { "Debug" }
+    );
     println!("  dry-run: {}", args.dry_run);
     if let Some(jobs) = args.jobs {
         println!("  parallel jobs: {jobs}");
@@ -71,7 +74,10 @@ fn run_inspector(root: &camino::Utf8Path) -> anyhow::Result<()> {
 
     println!("[INFO] Discovered {} module(s):", modules.len());
     for module in &modules {
-        println!("  - {:<24} [{:<6}]  {}", module.id, module.module_type, module.root);
+        println!(
+            "  - {:<24} [{:<6}]  {}",
+            module.id, module.module_type, module.root
+        );
     }
 
     Ok(())
