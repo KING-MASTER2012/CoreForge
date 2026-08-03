@@ -1,0 +1,15 @@
+{
+    "config": {
+        "MD013": false
+    },
+    "overrides": [
+        {
+            "files": [
+                "docs/src/SUMMARY.md"
+            ],
+            "config": {
+                "MD025": false
+            }
+        }
+    ]
+}
