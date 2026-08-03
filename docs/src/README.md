@@ -2,9 +2,11 @@
 
 Welcome to the official documentation for **CoreForge**.
 
-CoreForge is a modular, extensible and high-performance build system written in Rust.
+CoreForge is a modular, extensible and high-performance build 
+system written in Rust.
 
-This documentation covers everything from installation and first-time setup to the internal architecture of CoreForge.
+This documentation covers everything from installation and 
+first-time setup to the internal architecture of CoreForge.
 
 ## Documentation
 
