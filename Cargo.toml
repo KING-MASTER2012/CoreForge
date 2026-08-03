@@ -10,6 +10,10 @@ edition = "2024"
 license = "GPL-3.0-only"
 repository = "https://github.com/KING-MASTER2012/CoreForge"
 rust-version = "1.97.1"
+authors = ["KING-MASTER2012"]
+homepage = "https://github.com/KING-MASTER2012/CoreForge"
+categories = ["development-tools"]
+keywords = ["build-system", "compiler", "rust"]
 
 [workspace.dependencies]
 clap = { version = "4.6.5", features = ["derive"] }

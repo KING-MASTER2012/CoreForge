@@ -15,10 +15,10 @@ mod walk;
 
 pub use detect::detect_module_type;
 pub use error::InspectorError;
-pub use walk::{InspectConfig, inspect_repository};
+pub use walk::{DEFAULT_IGNORED_DIRS, InspectConfig, inspect_repository};
 
-use camino::Utf8PathBuf;
 use coreforge_core::{Module, ModuleId, ModuleType};
+use camino::Utf8PathBuf;
 
 /// A module discovered by the Project Inspector.
 ///
@@ -42,6 +42,10 @@ impl From<DiscoveredModule> for Module {
             id: value.id,
             root: value.root,
             module_type: value.module_type,
+            // Phase 1 (marker-file detection) has no notion of dependencies;
+            // those come from `coreforge.toml` in Phase 2.
+            depends: Vec::new(),
         }
     }
 }
+

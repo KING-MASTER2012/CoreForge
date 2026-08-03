@@ -76,9 +76,9 @@ impl std::fmt::Display for ModuleType {
 
 /// A build module discovered in, or declared for, the target repository.
 ///
-/// Populated by the Project Inspector (Phase 1) today; will later be enriched
-/// by the Manifest parser (Phase 2) with explicit `depends`, packaging
-/// behavior, and other `coreforge.toml`-specific fields.
+/// Populated by the Project Inspector (Phase 1) from native marker files,
+/// then enriched by the Manifest parser (Phase 2) with any `coreforge.toml`
+/// overrides and dependency declarations.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Module {
     /// The module's unique identifier.
@@ -87,6 +87,11 @@ pub struct Module {
     pub root: Utf8PathBuf,
     /// The toolchain used to build this module.
     pub module_type: ModuleType,
+    /// Ids of the modules this module depends on. Populated from
+    /// `coreforge.toml`'s `depends` field; empty for modules with no
+    /// manifest (Phase 3's Dependency Resolver treats an empty list as
+    /// "no dependencies", not as "unresolved").
+    pub depends: Vec<ModuleId>,
 }
 
 /// The error type shared across all CoreForge crates.

@@ -2,7 +2,7 @@ mod cli;
 
 use clap::Parser;
 use cli::{Cli, Command};
-use inspector::{InspectConfig, inspect_repository};
+use inspector::InspectConfig;
 
 fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
@@ -19,24 +19,24 @@ fn main() -> anyhow::Result<()> {
         Command::Build(args) => {
             println!("[INFO] Build command received.");
             print_build_args(&args);
-            run_inspector(&cli.root)?;
+            run_resolve(&cli.root)?;
         }
         Command::Test(args) => {
             println!("[INFO] Test command received.");
             print_build_args(&args);
-            run_inspector(&cli.root)?;
+            run_resolve(&cli.root)?;
         }
         Command::Package(args) => {
             println!("[INFO] Package command received.");
             print_build_args(&args);
-            run_inspector(&cli.root)?;
+            run_resolve(&cli.root)?;
         }
         Command::Clean { module } => match module {
             Some(m) => println!("[INFO] Clean command received (module: {m})."),
             None => println!("[INFO] Clean command received (all modules)."),
         },
         Command::Inspect => {
-            run_inspector(&cli.root)?;
+            run_resolve(&cli.root)?;
         }
     }
 
@@ -49,34 +49,43 @@ fn print_build_args(args: &cli::BuildArgs) {
     } else {
         println!("  target module(s): {}", args.modules.join(", "));
     }
-    println!(
-        "  configuration: {}",
-        if args.release { "Release" } else { "Debug" }
-    );
+    println!("  configuration: {}", if args.release { "Release" } else { "Debug" });
     println!("  dry-run: {}", args.dry_run);
     if let Some(jobs) = args.jobs {
         println!("  parallel jobs: {jobs}");
     }
 }
 
-/// Runs the Project Inspector (Phase 1) over `root` and prints the discovered
-/// modules. Note: this only *discovers* modules; nothing is built yet.
-fn run_inspector(root: &camino::Utf8Path) -> anyhow::Result<()> {
-    println!("[INFO] Inspecting repository: {root}");
+/// Runs the Project Inspector (Phase 1) + Manifest parser (Phase 2) over
+/// `root` and prints the resolved modules, including any `coreforge.toml`
+/// overrides and declared dependencies. Note: this only *resolves* modules;
+/// nothing is built yet.
+fn run_resolve(root: &camino::Utf8Path) -> anyhow::Result<()> {
+    println!("[INFO] Resolving modules under: {root}");
 
-    let config = InspectConfig::default();
-    let modules = inspect_repository(root, &config)?;
+    let inspector_config = InspectConfig::default();
+    let modules = manifest::resolve_modules(root, &inspector_config)?;
 
     if modules.is_empty() {
-        println!("[INFO] No modules found (no recognized marker files under {root}).");
+        println!("[INFO] No modules found under {root}.");
         return Ok(());
     }
 
-    println!("[INFO] Discovered {} module(s):", modules.len());
+    println!("[INFO] Resolved {} module(s):", modules.len());
     for module in &modules {
+        let depends = if module.depends.is_empty() {
+            String::from("-")
+        } else {
+            module
+                .depends
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>()
+                .join(", ")
+        };
         println!(
-            "  - {:<24} [{:<6}]  {}",
-            module.id, module.module_type, module.root
+            "  - {:<24} [{:<6}]  root: {:<28} depends: {}",
+            module.id, module.module_type, module.root, depends
         );
     }
 

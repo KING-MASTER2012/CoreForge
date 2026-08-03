@@ -2,10 +2,11 @@
 Last changed 14:08 29.07.2026 by KING-MASTER2012.
 
 ## What happened compared to the previous commit?
-- Inspector has been added.
+- Authors, homepage, categories and keywords has been added in Cargo.toml files.
+- Manifest has been made and tested.
 
 ## What will be done?
-- Manifest will be made.
+- Docs basics will be made.
 - Diagnostics will be made
 - Executor will be made.
 - Cache will be made.
