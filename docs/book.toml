@@ -5,5 +5,3 @@ src = "src"
 title = "CoreForge Documentation"
 
 [output.html]
-
-[output.linkcheck]
