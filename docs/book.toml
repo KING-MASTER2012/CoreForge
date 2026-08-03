@@ -1,7 +1,6 @@
 [book]
 authors = ["KING-MASTER2012"]
 language = "en"
-multilingual = false
 src = "src"
 title = "CoreForge Documentation"
 
