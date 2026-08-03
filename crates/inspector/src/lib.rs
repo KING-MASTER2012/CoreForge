@@ -17,8 +17,8 @@ pub use detect::detect_module_type;
 pub use error::InspectorError;
 pub use walk::{DEFAULT_IGNORED_DIRS, InspectConfig, inspect_repository};
 
-use coreforge_core::{Module, ModuleId, ModuleType};
 use camino::Utf8PathBuf;
+use coreforge_core::{Module, ModuleId, ModuleType};
 
 /// A module discovered by the Project Inspector.
 ///
@@ -48,4 +48,3 @@ impl From<DiscoveredModule> for Module {
         }
     }
 }
-
