@@ -49,7 +49,10 @@ fn print_build_args(args: &cli::BuildArgs) {
     } else {
         println!("  target module(s): {}", args.modules.join(", "));
     }
-    println!("  configuration: {}", if args.release { "Release" } else { "Debug" });
+    println!(
+        "  configuration: {}",
+        if args.release { "Release" } else { "Debug" }
+    );
     println!("  dry-run: {}", args.dry_run);
     if let Some(jobs) = args.jobs {
         println!("  parallel jobs: {jobs}");
