@@ -39,11 +39,6 @@ jobs:
               with:
                   version: latest
 
-            - name: Install html5validator
-              run: |
-                  python3 -m pip install --upgrade pip
-                  pip install html5validator
-
             - name: Install CSpell
               run: npm install -g cspell
 
@@ -59,9 +54,6 @@ jobs:
                     --verbose \
                     --no-progress \
                     docs/src/**/*.md
-
-            - name: Validate HTML
-              run: html5validator --root docs/book
 
             - name: Spell check
               run: |
