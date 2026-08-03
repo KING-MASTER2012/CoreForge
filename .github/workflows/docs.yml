@@ -31,24 +31,25 @@ jobs:
             - name: Install mdBook
               run: cargo install --locked mdbook
 
-            - name: Install mdBook Linkcheck
-              run: cargo install --locked mdbook-linkcheck
-
             - name: Install Lychee
-              uses: lycheeverse/lychee-action@v2
-              with:
-                  version: latest
+              run: cargo install --locked lychee
 
             - name: Install CSpell
               run: npm install -g cspell
 
+            - name: Install MarkdownLint
+              run: npm install -g markdownlint-cli2
+
             - name: Build documentation
               run: mdbook build docs
 
-            - name: Check internal links
+            - name: Test Rust examples
               run: mdbook test docs
 
-            - name: Check external links
+            - name: Lint Markdown
+              run: markdownlint-cli2 "docs/src/**/*.md"
+
+            - name: Check links
               run: |
                   lychee \
                     --verbose \
