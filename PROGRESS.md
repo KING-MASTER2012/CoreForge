@@ -2,7 +2,7 @@
 Last changed 14:08 29.07.2026 by KING-MASTER2012.
 
 ## What happened compared to the previous commit?
-- Inspector has been added.
+- Docs basics has been made
 
 ## What will be done?
 - Manifest will be made.
