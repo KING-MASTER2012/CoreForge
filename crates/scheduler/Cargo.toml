@@ -11,3 +11,9 @@ categories.workspace = true
 keywords.workspace = true
 
 [dependencies]
+camino.workspace = true
+rayon.workspace = true
+thiserror.workspace = true
+
+graph.workspace = true
+coreforge-core.workspace = true
