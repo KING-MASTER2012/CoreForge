@@ -173,6 +173,7 @@ name = "graph"
 version = "0.1.0"
 dependencies = [
  "camino",
+ "coreforge-core",
  "petgraph",
  "thiserror",
 ]
@@ -284,6 +285,13 @@ dependencies = [
 [[package]]
 name = "resolver"
 version = "0.1.0"
+dependencies = [
+ "camino",
+ "graph",
+ "inspector",
+ "manifest",
+ "thiserror",
+]
 
 [[package]]
 name = "same-file"

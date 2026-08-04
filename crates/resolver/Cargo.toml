@@ -11,3 +11,9 @@ categories.workspace = true
 keywords.workspace = true
 
 [dependencies]
+camino.workspace = true
+thiserror.workspace = true
+
+graph.workspace = true
+manifest.workspace = true
+inspector.workspace = true
