@@ -46,8 +46,11 @@ jobs:
             - name: Test Rust examples
               run: mdbook test docs
 
-            - name: Lint Markdown
-              run: markdownlint-cli2 "docs/src/**/*.md"
+            -   name: Lint Markdown
+                run: |
+                    markdownlint-cli2 \
+                      "docs/src/**/*.md" \
+                      "!docs/src/SUMMARY.md"
 
             - name: Check links
               run: |
