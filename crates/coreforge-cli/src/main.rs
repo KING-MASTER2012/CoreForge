@@ -38,6 +38,9 @@ fn main() -> anyhow::Result<()> {
         Command::Inspect => {
             run_resolve(&cli.root)?;
         }
+        Command::Graph => {
+            run_graph(&cli.root)?;
+        }
     }
 
     Ok(())
@@ -49,10 +52,7 @@ fn print_build_args(args: &cli::BuildArgs) {
     } else {
         println!("  target module(s): {}", args.modules.join(", "));
     }
-    println!(
-        "  configuration: {}",
-        if args.release { "Release" } else { "Debug" }
-    );
+    println!("  configuration: {}", if args.release { "Release" } else { "Debug" });
     println!("  dry-run: {}", args.dry_run);
     if let Some(jobs) = args.jobs {
         println!("  parallel jobs: {jobs}");
@@ -90,6 +90,36 @@ fn run_resolve(root: &camino::Utf8Path) -> anyhow::Result<()> {
             "  - {:<24} [{:<6}]  root: {:<28} depends: {}",
             module.id, module.module_type, module.root, depends
         );
+    }
+
+    Ok(())
+}
+
+/// Runs the full pipeline (Inspector + Manifest + Build Graph, Phases 1-3)
+/// over `root` and prints the resulting build order and parallel levels.
+/// Note: this only *resolves* the graph; nothing is built yet.
+fn run_graph(root: &camino::Utf8Path) -> anyhow::Result<()> {
+    println!("[INFO] Building dependency graph for: {root}");
+
+    let inspector_config = InspectConfig::default();
+    let graph = resolver::resolve(root, &inspector_config)?;
+
+    if graph.is_empty() {
+        println!("[INFO] No modules found under {root}.");
+        return Ok(());
+    }
+
+    println!("[INFO] {} module(s) in graph.", graph.len());
+
+    println!("[INFO] Build order (dependencies first):");
+    for (i, id) in graph.build_order()?.iter().enumerate() {
+        println!("  {}. {id}", i + 1);
+    }
+
+    println!("[INFO] Parallel build levels:");
+    for (level, ids) in graph.build_levels()?.iter().enumerate() {
+        let names = ids.iter().map(ToString::to_string).collect::<Vec<_>>().join(", ");
+        println!("  level {level}: {names}");
     }
 
     Ok(())

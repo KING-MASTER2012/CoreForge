@@ -54,6 +54,11 @@ pub enum Command {
     /// building anything. Useful for verifying the Project Inspector's
     /// output (Phase 1).
     Inspect,
+
+    /// Resolve the target repository into a Build Graph and print its
+    /// linear build order and parallel levels, without building anything.
+    /// Useful for verifying the Dependency Resolver's output (Phase 3).
+    Graph,
 }
 
 #[derive(Debug, clap::Args)]
