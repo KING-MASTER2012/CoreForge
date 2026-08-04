@@ -131,6 +131,7 @@ dependencies = [
  "inspector",
  "manifest",
  "resolver",
+ "scheduler",
 ]
 
 [[package]]

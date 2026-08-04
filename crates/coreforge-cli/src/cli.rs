@@ -79,4 +79,9 @@ pub struct BuildArgs {
     /// or the number of available CPUs.
     #[arg(short = 'j', long, value_name = "N")]
     pub jobs: Option<usize>,
+
+    /// Stop starting new build levels as soon as any module fails, instead
+    /// of continuing to build everything not blocked by the failure.
+    #[arg(long)]
+    pub fail_fast: bool,
 }

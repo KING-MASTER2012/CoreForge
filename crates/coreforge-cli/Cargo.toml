@@ -18,3 +18,4 @@ camino.workspace = true
 inspector.workspace = true
 resolver.workspace = true
 manifest.workspace = true
+scheduler.workspace = true

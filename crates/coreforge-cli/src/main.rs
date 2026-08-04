@@ -16,21 +16,9 @@ fn main() -> anyhow::Result<()> {
     }
 
     match cli.command {
-        Command::Build(args) => {
-            println!("[INFO] Build command received.");
-            print_build_args(&args);
-            run_resolve(&cli.root)?;
-        }
-        Command::Test(args) => {
-            println!("[INFO] Test command received.");
-            print_build_args(&args);
-            run_resolve(&cli.root)?;
-        }
-        Command::Package(args) => {
-            println!("[INFO] Package command received.");
-            print_build_args(&args);
-            run_resolve(&cli.root)?;
-        }
+        Command::Build(args) => run_scheduled(&cli.root, &args, "Build")?,
+        Command::Test(args) => run_scheduled(&cli.root, &args, "Test")?,
+        Command::Package(args) => run_scheduled(&cli.root, &args, "Package")?,
         Command::Clean { module } => match module {
             Some(m) => println!("[INFO] Clean command received (module: {m})."),
             None => println!("[INFO] Clean command received (all modules)."),
@@ -52,14 +40,83 @@ fn print_build_args(args: &cli::BuildArgs) {
     } else {
         println!("  target module(s): {}", args.modules.join(", "));
     }
-    println!(
-        "  configuration: {}",
-        if args.release { "Release" } else { "Debug" }
-    );
+    println!("  configuration: {}", if args.release { "Release" } else { "Debug" });
     println!("  dry-run: {}", args.dry_run);
+    println!("  fail-fast: {}", args.fail_fast);
     if let Some(jobs) = args.jobs {
         println!("  parallel jobs: {jobs}");
     }
+}
+
+/// Runs the full pipeline (Inspector + Manifest + Build Graph + Scheduler,
+/// Phases 1-4) over `root` and prints a per-module status report.
+///
+/// Real compilation (Phase 5's Tool Adapters) does not exist yet, so every
+/// module is currently run through [`scheduler::DryRunRunner`],
+/// which always succeeds immediately. This still exercises the Scheduler's
+/// real dependency-aware, parallel-level logic end to end.
+fn run_scheduled(root: &camino::Utf8Path, args: &cli::BuildArgs, verb: &str) -> anyhow::Result<()> {
+    println!("[INFO] {verb} command received.");
+    print_build_args(args);
+
+    let inspector_config = InspectConfig::default();
+    let graph = resolver::resolve(root, &inspector_config)?;
+
+    if graph.is_empty() {
+        println!("[INFO] No modules found under {root}.");
+        return Ok(());
+    }
+
+    if args.dry_run {
+        println!("[INFO] --dry-run: printing the build plan without running anything.");
+        println!("[INFO] Build order (dependencies first):");
+        for (i, id) in graph.build_order()?.iter().enumerate() {
+            println!("  {}. {id}", i + 1);
+        }
+        println!("[INFO] Parallel build levels:");
+        for (level, ids) in graph.build_levels()?.iter().enumerate() {
+            let names = ids.iter().map(ToString::to_string).collect::<Vec<_>>().join(", ");
+            println!("  level {level}: {names}");
+        }
+        return Ok(());
+    }
+
+    println!(
+        "[INFO] Tool Adapters are not implemented yet (Phase 5), so every module is currently \
+         run through coreforge-scheduler's placeholder DryRunRunner (always succeeds)."
+    );
+
+    let config = scheduler::SchedulerConfig {
+        parallel_jobs: args.jobs.unwrap_or(0),
+        fail_fast: args.fail_fast,
+    };
+    let report =
+        scheduler::run_build(&graph, &scheduler::DryRunRunner, &config)?;
+
+    for outcome in &report.outcomes {
+        let (tag, detail) = match &outcome.status {
+            scheduler::JobStatus::Success => ("OK", String::new()),
+            scheduler::JobStatus::Failed(reason) => ("FAIL", reason.clone()),
+            scheduler::JobStatus::Skipped(reason) => ("SKIP", reason.clone()),
+        };
+        println!(
+            "  [{tag:<4}] {:<24} {:>7.2?}  {detail}",
+            outcome.module, outcome.duration
+        );
+    }
+
+    let succeeded = report.outcomes.iter().filter(|o| o.status.is_success()).count();
+    let failed = report.failures().count();
+    let skipped = report.skipped().count();
+    println!(
+        "[INFO] {verb} finished: {succeeded} succeeded, {failed} failed, {skipped} skipped."
+    );
+
+    if !report.is_success() {
+        std::process::exit(1);
+    }
+
+    Ok(())
 }
 
 /// Runs the Project Inspector (Phase 1) + Manifest parser (Phase 2) over
@@ -121,11 +178,7 @@ fn run_graph(root: &camino::Utf8Path) -> anyhow::Result<()> {
 
     println!("[INFO] Parallel build levels:");
     for (level, ids) in graph.build_levels()?.iter().enumerate() {
-        let names = ids
-            .iter()
-            .map(ToString::to_string)
-            .collect::<Vec<_>>()
-            .join(", ");
+        let names = ids.iter().map(ToString::to_string).collect::<Vec<_>>().join(", ");
         println!("  level {level}: {names}");
     }
 
