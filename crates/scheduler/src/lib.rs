@@ -71,7 +71,7 @@ mod tests {
             module("engine", &[]),
             module("editor", &["engine"]),
         ])
-            .unwrap();
+        .unwrap();
 
         let report = run_build(&graph, &DryRunRunner, &SchedulerConfig::default()).unwrap();
 
@@ -92,20 +92,34 @@ mod tests {
             module("editor", &["engine"]),
             module("standalone", &["independent"]),
         ])
-            .unwrap();
+        .unwrap();
 
         let runner = RecordingRunner::new(&["engine"]);
-        let report =
-            run_build(&graph, &runner, &SchedulerConfig { parallel_jobs: 4, fail_fast: false })
-                .unwrap();
+        let report = run_build(
+            &graph,
+            &runner,
+            &SchedulerConfig {
+                parallel_jobs: 4,
+                fail_fast: false,
+            },
+        )
+        .unwrap();
 
         assert!(!report.is_success());
 
         let status_of = |id: &str| {
-            report.outcomes.iter().find(|o| o.module.0 == id).map(|o| o.status.clone()).unwrap()
+            report
+                .outcomes
+                .iter()
+                .find(|o| o.module.0 == id)
+                .map(|o| o.status.clone())
+                .unwrap()
         };
 
-        assert_eq!(status_of("engine"), JobStatus::Failed("simulated failure".to_string()));
+        assert_eq!(
+            status_of("engine"),
+            JobStatus::Failed("simulated failure".to_string())
+        );
         assert_eq!(status_of("independent"), JobStatus::Success);
         assert_eq!(status_of("standalone"), JobStatus::Success);
         assert!(status_of("editor").is_skipped());
@@ -126,18 +140,32 @@ mod tests {
             module("independent", &[]),
             module("standalone", &["independent"]),
         ])
-            .unwrap();
+        .unwrap();
 
         let runner = RecordingRunner::new(&["engine"]);
-        let report =
-            run_build(&graph, &runner, &SchedulerConfig { parallel_jobs: 4, fail_fast: true })
-                .unwrap();
+        let report = run_build(
+            &graph,
+            &runner,
+            &SchedulerConfig {
+                parallel_jobs: 4,
+                fail_fast: true,
+            },
+        )
+        .unwrap();
 
         let status_of = |id: &str| {
-            report.outcomes.iter().find(|o| o.module.0 == id).map(|o| o.status.clone()).unwrap()
+            report
+                .outcomes
+                .iter()
+                .find(|o| o.module.0 == id)
+                .map(|o| o.status.clone())
+                .unwrap()
         };
 
-        assert_eq!(status_of("engine"), JobStatus::Failed("simulated failure".to_string()));
+        assert_eq!(
+            status_of("engine"),
+            JobStatus::Failed("simulated failure".to_string())
+        );
         // Same level as the failure: already dispatched, allowed to finish.
         assert_eq!(status_of("independent"), JobStatus::Success);
         // Next level never started.
@@ -149,12 +177,10 @@ mod tests {
 
     #[test]
     fn cycle_is_reported_as_scheduler_error() {
-        let graph =
-            graph::BuildGraph::from_modules(vec![module("a", &["b"]), module("b", &["a"])])
-                .unwrap();
+        let graph = graph::BuildGraph::from_modules(vec![module("a", &["b"]), module("b", &["a"])])
+            .unwrap();
 
         let result = run_build(&graph, &DryRunRunner, &SchedulerConfig::default());
         assert!(matches!(result, Err(SchedulerError::Graph(_))));
     }
 }
-

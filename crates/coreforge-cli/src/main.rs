@@ -40,7 +40,10 @@ fn print_build_args(args: &cli::BuildArgs) {
     } else {
         println!("  target module(s): {}", args.modules.join(", "));
     }
-    println!("  configuration: {}", if args.release { "Release" } else { "Debug" });
+    println!(
+        "  configuration: {}",
+        if args.release { "Release" } else { "Debug" }
+    );
     println!("  dry-run: {}", args.dry_run);
     println!("  fail-fast: {}", args.fail_fast);
     if let Some(jobs) = args.jobs {
@@ -75,7 +78,11 @@ fn run_scheduled(root: &camino::Utf8Path, args: &cli::BuildArgs, verb: &str) -> 
         }
         println!("[INFO] Parallel build levels:");
         for (level, ids) in graph.build_levels()?.iter().enumerate() {
-            let names = ids.iter().map(ToString::to_string).collect::<Vec<_>>().join(", ");
+            let names = ids
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>()
+                .join(", ");
             println!("  level {level}: {names}");
         }
         return Ok(());
@@ -90,8 +97,7 @@ fn run_scheduled(root: &camino::Utf8Path, args: &cli::BuildArgs, verb: &str) -> 
         parallel_jobs: args.jobs.unwrap_or(0),
         fail_fast: args.fail_fast,
     };
-    let report =
-        scheduler::run_build(&graph, &scheduler::DryRunRunner, &config)?;
+    let report = scheduler::run_build(&graph, &scheduler::DryRunRunner, &config)?;
 
     for outcome in &report.outcomes {
         let (tag, detail) = match &outcome.status {
@@ -105,12 +111,14 @@ fn run_scheduled(root: &camino::Utf8Path, args: &cli::BuildArgs, verb: &str) -> 
         );
     }
 
-    let succeeded = report.outcomes.iter().filter(|o| o.status.is_success()).count();
+    let succeeded = report
+        .outcomes
+        .iter()
+        .filter(|o| o.status.is_success())
+        .count();
     let failed = report.failures().count();
     let skipped = report.skipped().count();
-    println!(
-        "[INFO] {verb} finished: {succeeded} succeeded, {failed} failed, {skipped} skipped."
-    );
+    println!("[INFO] {verb} finished: {succeeded} succeeded, {failed} failed, {skipped} skipped.");
 
     if !report.is_success() {
         std::process::exit(1);
@@ -178,7 +186,11 @@ fn run_graph(root: &camino::Utf8Path) -> anyhow::Result<()> {
 
     println!("[INFO] Parallel build levels:");
     for (level, ids) in graph.build_levels()?.iter().enumerate() {
-        let names = ids.iter().map(ToString::to_string).collect::<Vec<_>>().join(", ");
+        let names = ids
+            .iter()
+            .map(ToString::to_string)
+            .collect::<Vec<_>>()
+            .join(", ");
         println!("  level {level}: {names}");
     }
 

@@ -33,7 +33,10 @@ pub struct SchedulerConfig {
 
 impl Default for SchedulerConfig {
     fn default() -> Self {
-        Self { parallel_jobs: 0, fail_fast: false }
+        Self {
+            parallel_jobs: 0,
+            fail_fast: false,
+        }
     }
 }
 
@@ -81,11 +84,15 @@ pub fn run_build(
     let levels = graph.build_levels()?;
 
     let requested_threads = if config.parallel_jobs == 0 {
-        std::thread::available_parallelism().map(std::num::NonZeroUsize::get).unwrap_or(1)
+        std::thread::available_parallelism()
+            .map(std::num::NonZeroUsize::get)
+            .unwrap_or(1)
     } else {
         config.parallel_jobs
     };
-    let pool = rayon::ThreadPoolBuilder::new().num_threads(requested_threads).build()?;
+    let pool = rayon::ThreadPoolBuilder::new()
+        .num_threads(requested_threads)
+        .build()?;
 
     let mut outcomes = Vec::with_capacity(graph.len());
     let mut blocked: HashSet<ModuleId> = HashSet::new();
@@ -94,7 +101,10 @@ pub fn run_build(
     for level in levels {
         if stop_scheduling {
             for id in level {
-                outcomes.push(skipped_outcome(id, "fail-fast: an earlier level had a failure"));
+                outcomes.push(skipped_outcome(
+                    id,
+                    "fail-fast: an earlier level had a failure",
+                ));
             }
             continue;
         }
@@ -103,7 +113,9 @@ pub fn run_build(
         // dependency (never run) and modules that are actually runnable.
         let mut runnable = Vec::new();
         for id in level {
-            let module = graph.module(&id).expect("module id came from this graph's own levels");
+            let module = graph
+                .module(&id)
+                .expect("module id came from this graph's own levels");
             if let Some(blocking_dep) = module.depends.iter().find(|d| blocked.contains(*d)) {
                 blocked.insert(id.clone());
                 outcomes.push(skipped_outcome(
@@ -125,7 +137,11 @@ pub fn run_build(
                 .map(|module| {
                     let start = Instant::now();
                     let status = runner.run(module);
-                    JobOutcome { module: module.id.clone(), status, duration: start.elapsed() }
+                    JobOutcome {
+                        module: module.id.clone(),
+                        status,
+                        duration: start.elapsed(),
+                    }
                 })
                 .collect()
         });
@@ -147,5 +163,9 @@ pub fn run_build(
 }
 
 fn skipped_outcome(module: ModuleId, reason: &str) -> JobOutcome {
-    JobOutcome { module, status: JobStatus::Skipped(reason.to_string()), duration: std::time::Duration::ZERO }
+    JobOutcome {
+        module,
+        status: JobStatus::Skipped(reason.to_string()),
+        duration: std::time::Duration::ZERO,
+    }
 }
