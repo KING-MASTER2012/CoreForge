@@ -11,3 +11,6 @@ categories.workspace = true
 keywords.workspace = true
 
 [dependencies]
+petgraph.workspace = true
+camino.workspace = true
+thiserror.workspace = true
