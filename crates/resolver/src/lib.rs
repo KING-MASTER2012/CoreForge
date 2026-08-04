@@ -13,7 +13,7 @@
 
 mod error;
 
-pub use error::{Result, ResolverError};
+pub use error::{ResolverError, Result};
 
 use camino::Utf8Path;
 use graph::BuildGraph;
@@ -91,7 +91,9 @@ mod tests {
         fs::write(b.join("coreforge.toml"), r#"depends = ["a"]"#).unwrap();
 
         let result = resolve(&root, &InspectConfig::default());
-        assert!(matches!(result, Err(ResolverError::Graph(graph::GraphError::CycleDetected(_)))));
+        assert!(matches!(
+            result,
+            Err(ResolverError::Graph(graph::GraphError::CycleDetected(_)))
+        ));
     }
 }
-

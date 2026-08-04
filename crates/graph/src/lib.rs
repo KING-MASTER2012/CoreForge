@@ -41,7 +41,10 @@ impl BuildGraph {
     /// Creates an empty graph.
     #[must_use]
     pub fn new() -> Self {
-        Self { graph: DiGraph::new(), index_of: HashMap::new() }
+        Self {
+            graph: DiGraph::new(),
+            index_of: HashMap::new(),
+        }
     }
 
     /// Builds a graph from a flat list of modules (as produced by
@@ -147,7 +150,12 @@ impl BuildGraph {
     /// Returns [`GraphError::CycleDetected`] if the graph is not a valid DAG.
     pub fn build_order(&self) -> Result<Vec<ModuleId>> {
         toposort(&self.graph, None)
-            .map(|order| order.into_iter().map(|index| self.graph[index].id.clone()).collect())
+            .map(|order| {
+                order
+                    .into_iter()
+                    .map(|index| self.graph[index].id.clone())
+                    .collect()
+            })
             .map_err(|cycle| self.cycle_error_at(cycle.node_id()))
     }
 
@@ -166,15 +174,25 @@ impl BuildGraph {
         let mut in_degree: HashMap<NodeIndex, usize> = self
             .graph
             .node_indices()
-            .map(|index| (index, self.graph.edges_directed(index, Direction::Incoming).count()))
+            .map(|index| {
+                (
+                    index,
+                    self.graph
+                        .edges_directed(index, Direction::Incoming)
+                        .count(),
+                )
+            })
             .collect();
 
         let mut remaining: HashSet<NodeIndex> = self.graph.node_indices().collect();
         let mut levels = Vec::new();
 
         while !remaining.is_empty() {
-            let this_level: Vec<NodeIndex> =
-                remaining.iter().copied().filter(|index| in_degree[index] == 0).collect();
+            let this_level: Vec<NodeIndex> = remaining
+                .iter()
+                .copied()
+                .filter(|index| in_degree[index] == 0)
+                .collect();
 
             if this_level.is_empty() {
                 // Every remaining node has at least one unsatisfied incoming
@@ -192,8 +210,10 @@ impl BuildGraph {
                 }
             }
 
-            let mut ids: Vec<ModuleId> =
-                this_level.into_iter().map(|index| self.graph[index].id.clone()).collect();
+            let mut ids: Vec<ModuleId> = this_level
+                .into_iter()
+                .map(|index| self.graph[index].id.clone())
+                .collect();
             ids.sort_by(|a, b| a.0.cmp(&b.0));
             levels.push(ids);
         }
@@ -206,8 +226,10 @@ impl BuildGraph {
     fn cycle_error_at(&self, offending: NodeIndex) -> GraphError {
         for component in tarjan_scc(&self.graph) {
             if component.contains(&offending) {
-                let ids: Vec<ModuleId> =
-                    component.iter().map(|&index| self.graph[index].id.clone()).collect();
+                let ids: Vec<ModuleId> = component
+                    .iter()
+                    .map(|&index| self.graph[index].id.clone())
+                    .collect();
                 return GraphError::CycleDetected(ids);
             }
         }
@@ -239,7 +261,7 @@ mod tests {
             module("engine", &[]),
             module("launcher", &["engine", "editor"]),
         ])
-            .unwrap();
+        .unwrap();
 
         let order = graph.build_order().unwrap();
         let pos = |id: &str| order.iter().position(|m| m.0 == id).unwrap();
@@ -257,7 +279,7 @@ mod tests {
             module("go", &[]),
             module("launcher", &["rust", "cpp", "go"]),
         ])
-            .unwrap();
+        .unwrap();
 
         let levels = graph.build_levels().unwrap();
         assert_eq!(levels.len(), 2);
@@ -288,9 +310,12 @@ mod tests {
 
     #[test]
     fn cycle_is_detected() {
-        let graph =
-            BuildGraph::from_modules(vec![module("a", &["b"]), module("b", &["c"]), module("c", &["a"])])
-                .unwrap();
+        let graph = BuildGraph::from_modules(vec![
+            module("a", &["b"]),
+            module("b", &["c"]),
+            module("c", &["a"]),
+        ])
+        .unwrap();
 
         let err = graph.build_order().unwrap_err();
         match err {
