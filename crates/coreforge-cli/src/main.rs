@@ -52,7 +52,10 @@ fn print_build_args(args: &cli::BuildArgs) {
     } else {
         println!("  target module(s): {}", args.modules.join(", "));
     }
-    println!("  configuration: {}", if args.release { "Release" } else { "Debug" });
+    println!(
+        "  configuration: {}",
+        if args.release { "Release" } else { "Debug" }
+    );
     println!("  dry-run: {}", args.dry_run);
     if let Some(jobs) = args.jobs {
         println!("  parallel jobs: {jobs}");
@@ -118,7 +121,11 @@ fn run_graph(root: &camino::Utf8Path) -> anyhow::Result<()> {
 
     println!("[INFO] Parallel build levels:");
     for (level, ids) in graph.build_levels()?.iter().enumerate() {
-        let names = ids.iter().map(ToString::to_string).collect::<Vec<_>>().join(", ");
+        let names = ids
+            .iter()
+            .map(ToString::to_string)
+            .collect::<Vec<_>>()
+            .join(", ");
         println!("  level {level}: {names}");
     }
 
