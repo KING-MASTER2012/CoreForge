@@ -40,23 +40,31 @@ impl From<&str> for ModuleId {
 ///
 /// This determines which Tool Adapter (Phase 5, `coreforge-toolchain`) is
 /// responsible for building the module.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum ModuleType {
     /// A Rust crate or workspace, identified by `Cargo.toml`.
+    #[serde(alias = "Cargo")]
     Cargo,
     /// A CMake project, identified by `CMakeLists.txt`.
+    #[serde(alias = "CMake")]
     CMake,
     /// A plain Node.js/npm package, identified by `package.json`.
+    #[serde(alias = "Npm")]
     Npm,
     /// A Tauri application, identified by `package.json` plus a `src-tauri/` directory.
+    #[serde(alias = "Tauri")]
     Tauri,
     /// A Go module, identified by `go.mod`.
+    #[serde(alias = "Go")]
     Go,
     /// A SQL migration set. Identified by `supabase/config.toml` (the
     /// Supabase CLI's own project convention), or declared explicitly via
     /// `coreforge.toml` for projects that don't follow that layout.
+    #[serde(alias = "Sql")]
     Sql,
     /// A Python package, identified by `pyproject.toml` or `requirements.txt`.
+    #[serde(alias = "Python")]
     Python,
 }
 

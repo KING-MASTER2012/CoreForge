@@ -5,6 +5,10 @@ use coreforge_core::ModuleId;
 /// Errors that can occur while building or querying a [`crate::BuildGraph`].
 #[derive(Debug, thiserror::Error)]
 pub enum GraphError {
+    /// A requested module does not exist in the graph.
+    #[error("module not found in build graph: {0}")]
+    ModuleNotFound(ModuleId),
+
     /// Two modules were added with the same id.
     #[error("duplicate module id: {0}")]
     DuplicateModule(ModuleId),

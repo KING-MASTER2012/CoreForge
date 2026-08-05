@@ -4,6 +4,8 @@
 
 # Build outputs
 /target/
+/.coreforge/repos/
+/.coreforge/build/
 
 # Backups
 *.rs.bk

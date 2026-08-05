@@ -31,7 +31,7 @@ use inspector::InspectConfig;
 /// contain a duplicate id, an unknown dependency, a self-dependency, or a
 /// dependency cycle.
 pub fn resolve(root: &Utf8Path, inspector_config: &InspectConfig) -> Result<BuildGraph> {
-    let modules = manifest::resolve_modules(root, inspector_config)?;
+    let modules = resolve_modules(root, inspector_config)?;
     let graph = BuildGraph::from_modules(modules)?;
     // `BuildGraph::from_modules` only links edges; it does not itself check
     // for cycles (that check is deferred to `build_order`/`build_levels` so
@@ -41,6 +41,23 @@ pub fn resolve(root: &Utf8Path, inspector_config: &InspectConfig) -> Result<Buil
     // only when a later phase asks for a build order.
     graph.build_order()?;
     Ok(graph)
+}
+
+/// Resolves a repository through the Inspector and Manifest phases, without
+/// constructing a build graph.
+///
+/// This is intended for callers that need to transform module identifiers
+/// before linking them, such as a multi-repository workspace resolver. Normal
+/// single-repository callers should use [`resolve`].
+///
+/// # Errors
+///
+/// Returns any error produced by the Inspector or Manifest phases.
+pub fn resolve_modules(
+    root: &Utf8Path,
+    inspector_config: &InspectConfig,
+) -> Result<Vec<coreforge_core::Module>> {
+    Ok(manifest::resolve_modules(root, inspector_config)?)
 }
 
 #[cfg(test)]

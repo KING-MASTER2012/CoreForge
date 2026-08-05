@@ -79,6 +79,20 @@ pub fn inspect_repository(
     root: &Utf8Path,
     config: &InspectConfig,
 ) -> Result<Vec<DiscoveredModule>> {
+    inspect_repository_excluding(root, config, &HashSet::new())
+}
+
+/// Walks `root` and returns every discovered module outside `claimed_roots`.
+///
+/// A claimed root and all of its descendants are skipped before native marker
+/// detection. This lets higher-level declarative configuration reserve module
+/// directories without allowing native markers inside them to create a second
+/// module.
+pub fn inspect_repository_excluding(
+    root: &Utf8Path,
+    config: &InspectConfig,
+    claimed_roots: &HashSet<Utf8PathBuf>,
+) -> Result<Vec<DiscoveredModule>> {
     if !root.is_dir() {
         return Err(InspectorError::InvalidRoot(root.to_string()));
     }
@@ -110,10 +124,16 @@ pub fn inspect_repository(
             }
         }
 
+        let relative = relative_to(root, utf8_path);
+        if claimed_roots.contains(&relative) {
+            walker.skip_current_dir();
+            continue;
+        }
+
         if let Some(module_type) = detect_module_type(utf8_path) {
             discovered.push(DiscoveredModule {
                 id: module_id_for(root, utf8_path),
-                root: relative_to(root, utf8_path),
+                root: relative,
                 module_type,
             });
             // Do not descend further - the module's internals are its own business.

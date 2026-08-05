@@ -17,19 +17,19 @@
 //! deduplicated list of [`coreforge_core::Module`]s with their `depends`
 //! fields populated.
 
+mod build_core;
 mod discover;
 mod error;
 mod load;
 mod merge;
 mod schema;
 
+pub use build_core::{BUILD_CORE_FILE_NAME, BuildCoreFile, TargetDef, read_build_core};
 pub use discover::discover_manifest_only_modules;
 pub use error::{ManifestError, Result};
 pub use load::{find_manifest_path, read_manifest};
 pub use merge::apply_manifest_overrides;
 pub use schema::{MANIFEST_FILE_NAME, ManifestFile};
-
-use std::collections::HashSet;
 
 use camino::Utf8Path;
 use coreforge_core::Module;
@@ -50,10 +50,12 @@ use inspector::InspectConfig;
 /// [`inspector::InspectorError`]), a `coreforge.toml` fails to
 /// parse, or a manifest-only module is missing its required `type` field.
 pub fn resolve_modules(root: &Utf8Path, inspector_config: &InspectConfig) -> Result<Vec<Module>> {
-    let discovered = inspector::inspect_repository(root, inspector_config)?;
+    let build_core = build_core::resolve_build_core_targets(root)?;
+    let discovered =
+        inspector::inspect_repository_excluding(root, inspector_config, &build_core.claimed_roots)?;
 
-    let mut claimed_roots = HashSet::with_capacity(discovered.len());
-    let mut modules: Vec<Module> = Vec::with_capacity(discovered.len());
+    let mut claimed_roots = build_core.claimed_roots;
+    let mut modules = build_core.modules;
 
     for discovered_module in discovered {
         let mut module: Module = discovered_module.into();
@@ -163,5 +165,91 @@ mod tests {
 
         assert_eq!(modules.len(), 1);
         assert_eq!(modules[0].module_type, ModuleType::Cargo);
+    }
+
+    #[test]
+    fn build_core_target_blocks_native_detection_inside_its_root() {
+        let root = temp_dir("build-core-claimed-root");
+        let declared = root.join("migrations");
+        let declared_child = declared.join("internal");
+        let native = root.join("service");
+        fs::create_dir_all(&declared).unwrap();
+        fs::create_dir_all(&declared_child).unwrap();
+        fs::create_dir_all(&native).unwrap();
+        fs::write(declared.join("Cargo.toml"), "[workspace]").unwrap();
+        fs::write(declared_child.join("coreforge.toml"), "type = \"go\"").unwrap();
+        fs::write(native.join("go.mod"), "module example.com/service").unwrap();
+        fs::write(
+            root.join(BUILD_CORE_FILE_NAME),
+            r#"
+                [[target]]
+                kind = "sql"
+                name = "migrations"
+                path = "./migrations"
+            "#,
+        )
+        .unwrap();
+
+        let modules = resolve_modules(&root, &InspectConfig::default()).unwrap();
+
+        assert_eq!(modules.len(), 2);
+        assert_eq!(modules[0].id, ModuleId::from("migrations"));
+        assert_eq!(modules[0].module_type, ModuleType::Sql);
+        assert_eq!(modules[1].id, ModuleId::from("service"));
+        assert_eq!(modules[1].module_type, ModuleType::Go);
+    }
+
+    #[test]
+    fn build_core_rejects_overlapping_target_paths() {
+        let root = temp_dir("build-core-overlap");
+        fs::create_dir_all(root.join("services").join("api")).unwrap();
+        fs::write(
+            root.join(BUILD_CORE_FILE_NAME),
+            r#"
+                [[target]]
+                kind = "go"
+                name = "services"
+                path = "services"
+
+                [[target]]
+                kind = "go"
+                name = "api"
+                path = "services/api"
+            "#,
+        )
+        .unwrap();
+
+        let result = resolve_modules(&root, &InspectConfig::default());
+
+        assert!(matches!(
+            result,
+            Err(ManifestError::OverlappingBuildTargets {
+                first_name,
+                second_name,
+                ..
+            }) if first_name == "services" && second_name == "api"
+        ));
+    }
+
+    #[test]
+    fn build_core_rejects_missing_target_path() {
+        let root = temp_dir("build-core-missing-path");
+        fs::write(
+            root.join(BUILD_CORE_FILE_NAME),
+            r#"
+                [[target]]
+                kind = "sql"
+                name = "migrations"
+                path = "missing"
+            "#,
+        )
+        .unwrap();
+
+        let result = resolve_modules(&root, &InspectConfig::default());
+
+        assert!(matches!(
+            result,
+            Err(ManifestError::InvalidBuildTargetPath { name, .. }) if name == "migrations"
+        ));
     }
 }

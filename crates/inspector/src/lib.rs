@@ -15,7 +15,9 @@ mod walk;
 
 pub use detect::detect_module_type;
 pub use error::InspectorError;
-pub use walk::{DEFAULT_IGNORED_DIRS, InspectConfig, inspect_repository};
+pub use walk::{
+    DEFAULT_IGNORED_DIRS, InspectConfig, inspect_repository, inspect_repository_excluding,
+};
 
 use camino::Utf8PathBuf;
 use coreforge_core::{Module, ModuleId, ModuleType};

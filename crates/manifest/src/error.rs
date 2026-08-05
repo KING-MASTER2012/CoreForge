@@ -22,6 +22,40 @@ pub enum ManifestError {
         path: String,
     },
 
+    /// The repository-level `BUILD.core` file failed to parse.
+    #[error("failed to parse BUILD.core at {path}: {source}")]
+    BuildCoreParse {
+        /// The path to `BUILD.core`.
+        path: String,
+        /// The underlying TOML parse error.
+        #[source]
+        source: toml::de::Error,
+    },
+
+    /// A declared `BUILD.core` target has an invalid path.
+    #[error("invalid BUILD.core target '{name}' path '{path}': {reason}")]
+    InvalidBuildTargetPath {
+        /// Target name.
+        name: String,
+        /// Configured target path.
+        path: String,
+        /// Reason the path is invalid.
+        reason: String,
+    },
+
+    /// Two declared `BUILD.core` targets claim overlapping directories.
+    #[error("target '{first_name}' ({first_path}) overlaps target '{second_name}' ({second_path})")]
+    OverlappingBuildTargets {
+        /// First target name.
+        first_name: String,
+        /// First target path.
+        first_path: String,
+        /// Second target name.
+        second_name: String,
+        /// Second target path.
+        second_path: String,
+    },
+
     /// A path was expected to be valid UTF-8 but was not.
     #[error("path is not valid UTF-8: {0}")]
     NonUtf8Path(String),

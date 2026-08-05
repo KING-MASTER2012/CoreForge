@@ -19,3 +19,7 @@ inspector.workspace = true
 resolver.workspace = true
 manifest.workspace = true
 scheduler.workspace = true
+coreforge-workspace.workspace = true
+graph.workspace = true
+coreforge-core.workspace = true
+toolchain.workspace = true

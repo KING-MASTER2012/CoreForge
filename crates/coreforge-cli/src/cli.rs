@@ -59,6 +59,21 @@ pub enum Command {
     /// linear build order and parallel levels, without building anything.
     /// Useful for verifying the Dependency Resolver's output (Phase 3).
     Graph,
+
+    /// Manage a multi-repository CoreForge workspace.
+    Workspace(WorkspaceArgs),
+}
+
+#[derive(Debug, clap::Args)]
+pub struct WorkspaceArgs {
+    #[command(subcommand)]
+    pub command: WorkspaceCommand,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum WorkspaceCommand {
+    /// Fetch Git repositories, pin their commits, and update the workspace lock file.
+    Sync,
 }
 
 #[derive(Debug, clap::Args)]

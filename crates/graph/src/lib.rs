@@ -142,6 +142,31 @@ impl BuildGraph {
         self.graph.node_weights()
     }
 
+    /// Returns a graph containing each requested module and all of its
+    /// transitive dependencies.
+    ///
+    /// This is used when a caller builds a selected module instead of the
+    /// entire repository graph: dependencies are retained, unrelated modules
+    /// are excluded.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`GraphError::ModuleNotFound`] if any requested id is absent.
+    pub fn dependency_closure(&self, targets: &[ModuleId]) -> Result<Self> {
+        let mut selected = HashSet::new();
+        for target in targets {
+            self.collect_dependencies(target, &mut selected)?;
+        }
+
+        let modules = self
+            .graph
+            .node_weights()
+            .filter(|module| selected.contains(&module.id))
+            .cloned()
+            .collect();
+        Self::from_modules(modules)
+    }
+
     /// Returns a single, linear build order: every module appears after all
     /// of its (transitive) dependencies.
     ///
@@ -237,6 +262,24 @@ impl BuildGraph {
         // exactly one component, including singletons.
         GraphError::CycleDetected(vec![self.graph[offending].id.clone()])
     }
+
+    fn collect_dependencies(
+        &self,
+        module_id: &ModuleId,
+        selected: &mut HashSet<ModuleId>,
+    ) -> Result<()> {
+        if !selected.insert(module_id.clone()) {
+            return Ok(());
+        }
+
+        let module = self
+            .module(module_id)
+            .ok_or_else(|| GraphError::ModuleNotFound(module_id.clone()))?;
+        for dependency in &module.depends {
+            self.collect_dependencies(dependency, selected)?;
+        }
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -294,6 +337,25 @@ mod tests {
             result,
             Err(GraphError::UnknownDependency { dependency, .. }) if dependency.0 == "nonexistent"
         ));
+    }
+
+    #[test]
+    fn dependency_closure_excludes_unrelated_modules() {
+        let graph = BuildGraph::from_modules(vec![
+            module("engine", &[]),
+            module("editor", &["engine"]),
+            module("docs", &[]),
+        ])
+        .unwrap();
+
+        let selected = graph
+            .dependency_closure(&[ModuleId::from("editor")])
+            .unwrap();
+
+        assert_eq!(selected.len(), 2);
+        assert!(selected.module(&ModuleId::from("engine")).is_some());
+        assert!(selected.module(&ModuleId::from("editor")).is_some());
+        assert!(selected.module(&ModuleId::from("docs")).is_none());
     }
 
     #[test]

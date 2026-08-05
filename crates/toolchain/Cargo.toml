@@ -11,3 +11,8 @@ categories.workspace = true
 keywords.workspace = true
 
 [dependencies]
+camino.workspace = true
+thiserror.workspace = true
+
+coreforge-core.workspace = true
+scheduler.workspace = true

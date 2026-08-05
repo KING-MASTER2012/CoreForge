@@ -128,10 +128,14 @@ dependencies = [
  "anyhow",
  "camino",
  "clap",
+ "coreforge-core",
+ "coreforge-workspace",
+ "graph",
  "inspector",
  "manifest",
  "resolver",
  "scheduler",
+ "toolchain",
 ]
 
 [[package]]
@@ -141,6 +145,20 @@ dependencies = [
  "camino",
  "serde",
  "thiserror",
+]
+
+[[package]]
+name = "coreforge-workspace"
+version = "0.1.0"
+dependencies = [
+ "camino",
+ "coreforge-core",
+ "graph",
+ "inspector",
+ "resolver",
+ "serde",
+ "thiserror",
+ "toml",
 ]
 
 [[package]]
@@ -339,6 +357,7 @@ name = "resolver"
 version = "0.1.0"
 dependencies = [
  "camino",
+ "coreforge-core",
  "graph",
  "inspector",
  "manifest",
@@ -483,6 +502,12 @@ checksum = "7d56353a2a665ad0f41a421187180aab746c8c325620617ad883a99a1cbe66d2"
 [[package]]
 name = "toolchain"
 version = "0.1.0"
+dependencies = [
+ "camino",
+ "coreforge-core",
+ "scheduler",
+ "thiserror",
+]
 
 [[package]]
 name = "unicode-ident"
