@@ -43,13 +43,20 @@ pub fn detect_module_type(dir: &Utf8Path) -> Option<ModuleType> {
         return Some(ModuleType::Go);
     }
 
+    // Supabase project (its own de facto marker: a directory named
+    // "supabase" containing config.toml). This matches when the walker
+    // reaches the supabase/ directory itself, not its parent - repos
+    // following the Supabase CLI's own convention are recognized without
+    // needing an explicit coreforge.toml.
+    if dir.file_name() == Some("supabase") && dir.join("config.toml").is_file() {
+        return Some(ModuleType::Sql);
+    }
+
     // Python package.
     if dir.join("pyproject.toml").is_file() || dir.join("requirements.txt").is_file() {
         return Some(ModuleType::Python);
     }
 
-    // NOTE: ModuleType::Sql has no reliable marker file today; SQL modules
-    // must be declared explicitly via coreforge.toml (Phase 2).
     None
 }
 
@@ -108,6 +115,17 @@ mod tests {
         let dir = temp_dir("python");
         fs::write(dir.join("pyproject.toml"), "").unwrap();
         assert_eq!(detect_module_type(&dir), Some(ModuleType::Python));
+    }
+
+    #[test]
+    fn detects_supabase_project_as_sql() {
+        let dir = temp_dir("supabase");
+        let supabase_dir = dir.join("supabase");
+        fs::create_dir_all(&supabase_dir).unwrap();
+        fs::write(supabase_dir.join("config.toml"), "project_id = \"x\"").unwrap();
+        // The "supabase" directory itself is the module root, not its parent.
+        assert_eq!(detect_module_type(&supabase_dir), Some(ModuleType::Sql));
+        assert_eq!(detect_module_type(&dir), None);
     }
 
     #[test]
