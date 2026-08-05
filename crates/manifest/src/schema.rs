@@ -12,8 +12,9 @@ pub const MANIFEST_FILE_NAME: &str = "coreforge.toml";
 /// file (`Cargo.toml`, `CMakeLists.txt`, ...) - in that case the manifest
 /// only needs to add what the native file can't express (an id override,
 /// extra dependencies, ...). For a module with **no** native marker (e.g. a
-/// SQL migration set), `type` is required, since there is nothing else to
-/// infer it from; see [`crate::discover_manifest_only_modules`].
+/// database migration set that doesn't follow the Supabase CLI's own
+/// `supabase/config.toml` convention), `type` is required, since there is
+/// nothing else to infer it from; see [`crate::discover_manifest_only_modules`].
 ///
 /// Unknown fields are ignored rather than rejected, so that later phases
 /// (packaging behavior, etc.) can extend this schema without breaking

@@ -8,8 +8,9 @@
 //! - For a module with a native marker file (`Cargo.toml`, `CMakeLists.txt`, ...),
 //!   the manifest is optional and may override its id/type and declare its
 //!   `depends`.
-//! - For a module with **no** native marker file (e.g. a SQL migration set),
-//!   the manifest is the sole source of truth and must declare `type`.
+//! - For a module with **no** native marker file (e.g. a database migration
+//!   set that doesn't follow the Supabase CLI's `supabase/config.toml`
+//!   convention), the manifest is the sole source of truth and must declare `type`.
 //!
 //! This crate does not build, schedule, or validate the dependency graph -
 //! that is [`coreforge_resolver`]'s job (Phase 3). It only produces a flat,
@@ -46,7 +47,7 @@ use inspector::InspectConfig;
 /// # Errors
 ///
 /// Returns an error if the repository root is invalid (via the wrapped
-/// [`coreforge_inspector::InspectorError`]), a `coreforge.toml` fails to
+/// [`inspector::InspectorError`]), a `coreforge.toml` fails to
 /// parse, or a manifest-only module is missing its required `type` field.
 pub fn resolve_modules(root: &Utf8Path, inspector_config: &InspectConfig) -> Result<Vec<Module>> {
     let discovered = inspector::inspect_repository(root, inspector_config)?;
@@ -111,7 +112,7 @@ mod tests {
                 depends = ["engine"]
             "#,
         )
-        .unwrap();
+            .unwrap();
 
         let modules = resolve_modules(&root, &InspectConfig::default()).unwrap();
 
