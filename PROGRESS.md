@@ -5,6 +5,7 @@ Last changed 14:08 29.07.2026 by KING-MASTER2012.
 - Scheduler has been made.
 
 ## What will be done?
+
 - Diagnostics will be made
 - Executor will be made.
 - Cache will be made.
