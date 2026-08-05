@@ -47,7 +47,9 @@ pub fn discover_manifest_only_modules(
 
         let path = entry.path();
         let Some(utf8_path) = Utf8Path::from_path(path) else {
-            return Err(ManifestError::NonUtf8Path(path.to_string_lossy().into_owned()));
+            return Err(ManifestError::NonUtf8Path(
+                path.to_string_lossy().into_owned(),
+            ));
         };
         let relative = utf8_path.strip_prefix(root).unwrap_or(utf8_path);
 
@@ -72,10 +74,15 @@ pub fn discover_manifest_only_modules(
 
         let manifest = read_manifest(&manifest_path)?;
         let Some(module_type) = manifest.module_type else {
-            return Err(ManifestError::MissingType { path: manifest_path.to_string() });
+            return Err(ManifestError::MissingType {
+                path: manifest_path.to_string(),
+            });
         };
 
-        let id = manifest.name.map(ModuleId::from).unwrap_or_else(|| module_id_from_path(relative));
+        let id = manifest
+            .name
+            .map(ModuleId::from)
+            .unwrap_or_else(|| module_id_from_path(relative));
 
         discovered.push(Module {
             id,

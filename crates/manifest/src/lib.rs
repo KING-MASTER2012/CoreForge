@@ -112,7 +112,7 @@ mod tests {
                 depends = ["engine"]
             "#,
         )
-            .unwrap();
+        .unwrap();
 
         let modules = resolve_modules(&root, &InspectConfig::default()).unwrap();
 
