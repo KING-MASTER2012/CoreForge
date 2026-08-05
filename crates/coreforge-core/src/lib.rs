@@ -52,8 +52,9 @@ pub enum ModuleType {
     Tauri,
     /// A Go module, identified by `go.mod`.
     Go,
-    /// A SQL migration set (schema/seed/validate). Not yet auto-detected by the
-    /// Project Inspector; expected to be declared explicitly via `coreforge.toml`.
+    /// A SQL migration set. Identified by `supabase/config.toml` (the
+    /// Supabase CLI's own project convention), or declared explicitly via
+    /// `coreforge.toml` for projects that don't follow that layout.
     Sql,
     /// A Python package, identified by `pyproject.toml` or `requirements.txt`.
     Python,
