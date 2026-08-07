@@ -250,11 +250,7 @@ mod tests {
         let dir = tempdir();
         let output_dir = dir.join("engine");
         fs::create_dir_all(output_dir.join("release")).unwrap();
-        fs::write(
-            output_dir.join("release").join("engine"),
-            b"pretend binary",
-        )
-            .unwrap();
+        fs::write(output_dir.join("release").join("engine"), b"pretend binary").unwrap();
 
         let dist_root = dir.join("dist");
         let manifest = collect(&[artifact("engine", &output_dir)], &dist_root).unwrap();
@@ -276,8 +272,7 @@ mod tests {
         fs::write(output_dir.join("some-unexpected-name"), b"binary").unwrap();
 
         let dist_root = dir.join("dist");
-        let manifest =
-            collect(&[artifact("coreverse-server", &output_dir)], &dist_root).unwrap();
+        let manifest = collect(&[artifact("coreverse-server", &output_dir)], &dist_root).unwrap();
 
         assert_eq!(manifest.entries.len(), 1);
         assert_eq!(
@@ -339,14 +334,16 @@ mod tests {
     }
 
     fn tempdir() -> Utf8PathBuf {
-        let path = Utf8PathBuf::from_path_buf(std::env::temp_dir()).unwrap().join(format!(
-            "coreforge-collector-test-{}-{}",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::SystemTime::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        ));
+        let path = Utf8PathBuf::from_path_buf(std::env::temp_dir())
+            .unwrap()
+            .join(format!(
+                "coreforge-collector-test-{}-{}",
+                std::process::id(),
+                std::time::SystemTime::now()
+                    .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                    .unwrap()
+                    .as_nanos()
+            ));
         fs::create_dir_all(&path).unwrap();
         path
     }

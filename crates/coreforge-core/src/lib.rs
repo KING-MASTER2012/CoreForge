@@ -156,7 +156,13 @@ mod tests {
     #[test]
     fn sanitized_replaces_illegal_path_characters() {
         assert_eq!(ModuleId::from("engine").sanitized(), "engine");
-        assert_eq!(ModuleId::from("engine::engine").sanitized(), "engine__engine");
-        assert_eq!(ModuleId::from("coreverse-server").sanitized(), "coreverse-server");
+        assert_eq!(
+            ModuleId::from("engine::engine").sanitized(),
+            "engine__engine"
+        );
+        assert_eq!(
+            ModuleId::from("coreverse-server").sanitized(),
+            "coreverse-server"
+        );
     }
 }

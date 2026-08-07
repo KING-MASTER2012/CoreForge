@@ -73,7 +73,7 @@ mod tests {
             module("engine", &[]),
             module("editor", &["engine"]),
         ])
-            .unwrap();
+        .unwrap();
 
         let report = run_build(&graph, &DryRunRunner, &SchedulerConfig::default()).unwrap();
 
@@ -94,7 +94,7 @@ mod tests {
             module("editor", &["engine"]),
             module("standalone", &["independent"]),
         ])
-            .unwrap();
+        .unwrap();
 
         let runner = RecordingRunner::new(&["engine"]);
         let report = run_build(
@@ -105,7 +105,7 @@ mod tests {
                 fail_fast: false,
             },
         )
-            .unwrap();
+        .unwrap();
 
         assert!(!report.is_success());
 
@@ -142,7 +142,7 @@ mod tests {
             module("independent", &[]),
             module("standalone", &["independent"]),
         ])
-            .unwrap();
+        .unwrap();
 
         let runner = RecordingRunner::new(&["engine"]);
         let report = run_build(
@@ -153,7 +153,7 @@ mod tests {
                 fail_fast: true,
             },
         )
-            .unwrap();
+        .unwrap();
 
         let status_of = |id: &str| {
             report

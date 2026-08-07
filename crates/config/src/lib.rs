@@ -129,7 +129,7 @@ mod tests {
              warnings_as_errors = true\n\
              build_tests = false\n",
         )
-            .unwrap();
+        .unwrap();
 
         let config = load_from_root(&dir).unwrap().unwrap();
         assert_eq!(config.parallel_jobs, Some(16));

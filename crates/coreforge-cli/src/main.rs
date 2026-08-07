@@ -33,14 +33,8 @@ fn main() -> anyhow::Result<()> {
             run_scheduled(&cli.root, &args, &build_config, cli.quiet, "Test", false)?;
         }
         Command::Package(args) => {
-            let artifacts = run_scheduled(
-                &cli.root,
-                &args,
-                &build_config,
-                cli.quiet,
-                "Package",
-                true,
-            )?;
+            let artifacts =
+                run_scheduled(&cli.root, &args, &build_config, cli.quiet, "Package", true)?;
             run_collect(&cli.root, &artifacts)?;
         }
         Command::Clean { module } => run_clean(&cli.root, module.as_deref())?,
@@ -92,7 +86,11 @@ fn effective_settings(
 
     let jobs = args
         .jobs
-        .or_else(|| build_config.as_ref().and_then(|config| config.parallel_jobs))
+        .or_else(|| {
+            build_config
+                .as_ref()
+                .and_then(|config| config.parallel_jobs)
+        })
         .unwrap_or(0);
 
     EffectiveSettings {
@@ -109,7 +107,11 @@ fn print_build_args(args: &cli::BuildArgs, effective: &EffectiveSettings) {
     }
     println!(
         "  configuration: {}",
-        if effective.release { "Release" } else { "Debug" }
+        if effective.release {
+            "Release"
+        } else {
+            "Debug"
+        }
     );
     println!("  dry-run: {}", args.dry_run);
     println!("  fail-fast: {}", args.fail_fast);
@@ -192,15 +194,20 @@ fn run_scheduled(
     let (report, artifacts) = if use_toolchain {
         let contexts = build_contexts(&project.module_dirs, root, effective.release);
         let runner = toolchain::ToolchainRunner::new(contexts);
-        let report = scheduler::run_build_with_progress(graph, &runner, &scheduler_config, progress)?;
+        let report =
+            scheduler::run_build_with_progress(graph, &runner, &scheduler_config, progress)?;
         let artifacts = runner.artifacts();
         (report, artifacts)
     } else {
         tracing::info!(
             "{verb} tool adapters are not implemented yet; using the scheduler dry-run runner."
         );
-        let report =
-            scheduler::run_build_with_progress(graph, &scheduler::DryRunRunner, &scheduler_config, progress)?;
+        let report = scheduler::run_build_with_progress(
+            graph,
+            &scheduler::DryRunRunner,
+            &scheduler_config,
+            progress,
+        )?;
         (report, Vec::new())
     };
 
