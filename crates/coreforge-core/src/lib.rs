@@ -36,6 +36,29 @@ impl From<&str> for ModuleId {
     }
 }
 
+impl ModuleId {
+    /// A filesystem-safe representation of this id.
+    ///
+    /// Workspace ids are namespaced as `repository::module` (see
+    /// `coreforge-workspace`), and `::` is not a legal path character on
+    /// Windows. Every character that is not an ASCII letter, digit, `-` or
+    /// `_` is replaced with `_`. Used wherever an id is turned into a path
+    /// segment: managed build output directories and the `dist/` layout.
+    #[must_use]
+    pub fn sanitized(&self) -> String {
+        self.0
+            .chars()
+            .map(|character| {
+                if character.is_ascii_alphanumeric() || matches!(character, '-' | '_') {
+                    character
+                } else {
+                    '_'
+                }
+            })
+            .collect()
+    }
+}
+
 /// The toolchain a module is built with.
 ///
 /// This determines which Tool Adapter (Phase 5, `coreforge-toolchain`) is
@@ -125,3 +148,15 @@ pub enum CoreForgeError {
 
 /// A convenience alias for `Result<T, CoreForgeError>`.
 pub type Result<T> = std::result::Result<T, CoreForgeError>;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sanitized_replaces_illegal_path_characters() {
+        assert_eq!(ModuleId::from("engine").sanitized(), "engine");
+        assert_eq!(ModuleId::from("engine::engine").sanitized(), "engine__engine");
+        assert_eq!(ModuleId::from("coreverse-server").sanitized(), "coreverse-server");
+    }
+}
