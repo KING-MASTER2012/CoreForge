@@ -11,6 +11,7 @@ use rayon::prelude::*;
 
 use crate::error::Result;
 use crate::job::{JobOutcome, JobRunner, JobStatus};
+use crate::progress::{NoProgress, ProgressSink};
 
 /// Configuration for [`run_build`].
 #[derive(Debug, Clone)]
@@ -81,6 +82,24 @@ pub fn run_build(
     runner: &dyn JobRunner,
     config: &SchedulerConfig,
 ) -> Result<SchedulerReport> {
+    run_build_with_progress(graph, runner, config, &NoProgress)
+}
+
+/// Identical to [`run_build`], but reports every job start/finish to
+/// `progress` as it happens - the CLI uses this to drive a live progress
+/// display. `run_build` is [`NoProgress`] plumbed through this.
+///
+/// # Errors
+///
+/// Returns [`crate::SchedulerError::Graph`] if `graph` is not a valid DAG, or
+/// [`crate::SchedulerError::ThreadPool`] if the dedicated thread pool for
+/// this build could not be created.
+pub fn run_build_with_progress(
+    graph: &BuildGraph,
+    runner: &dyn JobRunner,
+    config: &SchedulerConfig,
+    progress: &dyn ProgressSink,
+) -> Result<SchedulerReport> {
     let levels = graph.build_levels()?;
 
     let requested_threads = if config.parallel_jobs == 0 {
@@ -101,10 +120,9 @@ pub fn run_build(
     for level in levels {
         if stop_scheduling {
             for id in level {
-                outcomes.push(skipped_outcome(
-                    id,
-                    "fail-fast: an earlier level had a failure",
-                ));
+                let outcome = skipped_outcome(id, "fail-fast: an earlier level had a failure");
+                progress.job_finished(&outcome.module, &outcome.status, outcome.duration);
+                outcomes.push(outcome);
             }
             continue;
         }
@@ -118,10 +136,12 @@ pub fn run_build(
                 .expect("module id came from this graph's own levels");
             if let Some(blocking_dep) = module.depends.iter().find(|d| blocked.contains(*d)) {
                 blocked.insert(id.clone());
-                outcomes.push(skipped_outcome(
+                let outcome = skipped_outcome(
                     id,
                     &format!("dependency '{blocking_dep}' failed or was skipped"),
-                ));
+                );
+                progress.job_finished(&outcome.module, &outcome.status, outcome.duration);
+                outcomes.push(outcome);
             } else {
                 runnable.push(module);
             }
@@ -135,12 +155,15 @@ pub fn run_build(
             runnable
                 .par_iter()
                 .map(|module| {
+                    progress.job_started(&module.id);
                     let start = Instant::now();
                     let status = runner.run(module);
+                    let duration = start.elapsed();
+                    progress.job_finished(&module.id, &status, duration);
                     JobOutcome {
                         module: module.id.clone(),
                         status,
-                        duration: start.elapsed(),
+                        duration,
                     }
                 })
                 .collect()
