@@ -16,15 +16,20 @@ use clap::{Parser, Subcommand};
 )]
 pub struct Cli {
     /// Enable verbose logging.
-    #[arg(short, long, global = true)]
+    #[arg(short, long, global = true, conflicts_with = "quiet")]
     pub verbose: bool,
+
+    /// Only report warnings and errors.
+    #[arg(short, long, global = true, conflicts_with = "verbose")]
+    pub quiet: bool,
 
     /// Path to the target repository root. Defaults to the current directory.
     #[arg(long, global = true, value_name = "PATH", default_value = ".")]
     pub root: Utf8PathBuf,
 
     /// Path to a `build-system.toml` file. If unset, it is auto-discovered
-    /// relative to `--root` (to be implemented in Phase 8).
+    /// as `--root/build-system.toml` (Phase 8). CLI flags always override
+    /// whatever this file sets.
     #[arg(long, global = true, value_name = "PATH")]
     pub config: Option<Utf8PathBuf>,
 
