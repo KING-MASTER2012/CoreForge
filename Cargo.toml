@@ -55,6 +55,7 @@ config = { path = "crates/config" }
 utils = { path = "crates/utils" }
 inspector = { path = "crates/inspector" }
 coreforge-workspace = { path = "crates/coreforge-workspace" }
+collector = { path = "crates/collector" }
 
 [profile.release]
 lto = "fat"

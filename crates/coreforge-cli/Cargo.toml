@@ -26,3 +26,5 @@ coreforge-workspace.workspace = true
 graph.workspace = true
 coreforge-core.workspace = true
 toolchain.workspace = true
+logging.workspace = true
+collector.workspace = true
