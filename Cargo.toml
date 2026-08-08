@@ -13,7 +13,7 @@ rust-version = "1.97.1"
 authors = ["KING-MASTER2012"]
 homepage = "https://github.com/KING-MASTER2012/CoreForge"
 categories = ["development-tools"]
-keywords = ["build-system", "compiler", "rust"]
+keywords = ["build-system", "orhestrator", "rust"]
 
 [workspace.dependencies]
 clap = { version = "4.6.6", features = ["derive"] }
@@ -39,6 +39,8 @@ clap_complete = "4.6.9"
 clap_mangen = "0.3.2"
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
+eframe = { version = "0.36.1", default-features = true }
+egui = "0.36.1"
 
 coreforge-core = { path = "crates/coreforge-core" }
 graph = { path = "crates/graph" }
@@ -56,6 +58,7 @@ utils = { path = "crates/utils" }
 inspector = { path = "crates/inspector" }
 coreforge-workspace = { path = "crates/coreforge-workspace" }
 collector = { path = "crates/collector" }
+coreforge-gui = { path = "crates/coreforge-gui"}
 
 [profile.release]
 lto = "fat"

@@ -248,6 +248,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "coreforge-gui"
+version = "0.1.0"
+
+[[package]]
 name = "coreforge-workspace"
 version = "0.1.0"
 dependencies = [
