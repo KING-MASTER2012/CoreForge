@@ -78,7 +78,11 @@ fn print_build_args(args: &cli::BuildArgs, effective: &executor::EffectiveSettin
     }
     println!(
         "  configuration: {}",
-        if effective.release { "Release" } else { "Debug" }
+        if effective.release {
+            "Release"
+        } else {
+            "Debug"
+        }
     );
     println!("  dry-run: {}", args.dry_run);
     println!("  fail-fast: {}", args.fail_fast);
@@ -212,7 +216,10 @@ fn print_dist_summary(
 
     let dist_root = root.join("dist");
     let collected = manifest.entries.len();
-    println!("Collected {collected}/{} artifact(s) into {dist_root}.", artifacts.len());
+    println!(
+        "Collected {collected}/{} artifact(s) into {dist_root}.",
+        artifacts.len()
+    );
     for entry in &manifest.entries {
         println!("  - {:<24} {}", entry.module, entry.path);
     }
