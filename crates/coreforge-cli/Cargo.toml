@@ -15,7 +15,6 @@ clap.workspace = true
 anyhow.workspace = true
 camino.workspace = true
 tracing.workspace = true
-config.workspace = true
 indicatif.workspace = true
 
 executor.workspace = true
