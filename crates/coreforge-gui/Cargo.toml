@@ -11,6 +11,15 @@ categories.workspace = true
 keywords.workspace = true
 
 [dependencies]
+eframe.workspace = true
+egui.workspace = true
+camino.workspace = true
+rfd.workspace = true
+
+coreforge-core.workspace = true
+scheduler.workspace = true
+executor.workspace = true
+config.workspace = true
 
 [lints]
 workspace = true
