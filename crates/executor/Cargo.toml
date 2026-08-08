@@ -11,3 +11,15 @@ categories.workspace = true
 keywords.workspace = true
 
 [dependencies]
+camino.workspace = true
+thiserror.workspace = true
+
+coreforge-core.workspace = true
+coreforge-workspace.workspace = true
+collector.workspace = true
+graph.workspace = true
+resolver.workspace = true
+scheduler.workspace = true
+toolchain.workspace = true
+config.workspace = true
+inspector.workspace = true
