@@ -1,14 +1,14 @@
 //! The application: state, the `eframe::App` loop, and background-thread
 //! helpers that keep the UI responsive while an `executor::` pipeline runs.
 
-use std::sync::mpsc::{channel, Receiver, Sender};
+use std::sync::mpsc::{Receiver, Sender, channel};
 use std::thread;
 use std::time::Duration;
 
 use camino::Utf8PathBuf;
 use coreforge_core::Module;
 
-use crate::progress::{summarize, ChannelProgress, GuiEvent, JobOutcomeKind};
+use crate::progress::{ChannelProgress, GuiEvent, JobOutcomeKind, summarize};
 
 #[derive(Debug, Clone, Copy)]
 enum RunMode {
@@ -135,18 +135,12 @@ impl CoreForgeApp {
 
         match Utf8PathBuf::from_path_buf(path) {
             Ok(root) => {
-                self.push_log(
-                    format!("Root directory selected: {root}"),
-                    LogKind::Info,
-                );
+                self.push_log(format!("Root directory selected: {root}"), LogKind::Info);
                 self.root = Some(root);
                 self.refresh();
             }
             Err(_) => {
-                self.push_log(
-                    "Selected folder path is not valid UTF-8.",
-                    LogKind::Error,
-                );
+                self.push_log("Selected folder path is not valid UTF-8.", LogKind::Error);
             }
         }
     }
@@ -158,18 +152,12 @@ impl CoreForgeApp {
 
         match executor::inspect(&root) {
             Ok(modules) => {
-                self.push_log(
-                    format!("{} modules found.", modules.len()),
-                    LogKind::Info,
-                );
+                self.push_log(format!("{} modules found.", modules.len()), LogKind::Info);
                 self.modules = modules;
             }
             Err(error) => {
                 self.modules.clear();
-                self.push_log(
-                    format!("Module resolution error: {error}"),
-                    LogKind::Error,
-                );
+                self.push_log(format!("Module resolution error: {error}"), LogKind::Error);
             }
         }
 
@@ -209,26 +197,21 @@ impl CoreForgeApp {
             let progress = ChannelProgress::new(sender.clone());
 
             let result = match mode {
-                RunMode::Build => executor::build(
-                    &root,
-                    &options,
-                    build_config.as_ref(),
-                    &progress,
-                )
-                    .map(|outcome| summarize("Build", &outcome, None)),
+                RunMode::Build => {
+                    executor::build(&root, &options, build_config.as_ref(), &progress)
+                        .map(|outcome| summarize("Build", &outcome, None))
+                }
 
                 RunMode::Test => executor::test(&root, &options, &progress)
                     .map(|outcome| summarize("Test", &outcome, None)),
 
-                RunMode::Package => executor::package(
-                    &root,
-                    &options,
-                    build_config.as_ref(),
-                    &progress,
-                )
-                    .map(|(outcome, manifest)| {
-                        summarize("Package", &outcome, Some(manifest.entries.len()))
-                    }),
+                RunMode::Package => {
+                    executor::package(&root, &options, build_config.as_ref(), &progress).map(
+                        |(outcome, manifest)| {
+                            summarize("Package", &outcome, Some(manifest.entries.len()))
+                        },
+                    )
+                }
             };
 
             let _ = sender.send(GuiEvent::RunFinished(
@@ -237,30 +220,17 @@ impl CoreForgeApp {
         });
     }
 
-    fn print_dry_run(
-        &mut self,
-        root: &Utf8PathBuf,
-        options: &executor::BuildOptions,
-    ) {
+    fn print_dry_run(&mut self, root: &Utf8PathBuf, options: &executor::BuildOptions) {
         match executor::dry_run(root, options) {
             Ok(plan) if plan.order.is_empty() => {
-                self.push_log(
-                    "Build plan is empty: no modules found.",
-                    LogKind::Warning,
-                );
+                self.push_log("Build plan is empty: no modules found.", LogKind::Warning);
             }
 
             Ok(plan) => {
-                self.push_log(
-                    "Build order (dependencies first):",
-                    LogKind::Info,
-                );
+                self.push_log("Build order (dependencies first):", LogKind::Info);
 
                 for (index, id) in plan.order.iter().enumerate() {
-                    self.push_log(
-                        format!("  {}. {id}", index + 1),
-                        LogKind::Info,
-                    );
+                    self.push_log(format!("  {}. {id}", index + 1), LogKind::Info);
                 }
 
                 for (level, ids) in plan.levels.iter().enumerate() {
@@ -270,10 +240,7 @@ impl CoreForgeApp {
                         .collect::<Vec<_>>()
                         .join(", ");
 
-                    self.push_log(
-                        format!("  level {level}: {names}"),
-                        LogKind::Info,
-                    );
+                    self.push_log(format!("  level {level}: {names}"), LogKind::Info);
                 }
             }
 
@@ -331,10 +298,7 @@ impl CoreForgeApp {
         while let Ok(event) = self.rx.try_recv() {
             match event {
                 GuiEvent::JobStarted(id) => {
-                    self.push_log(
-                        format!("started: {id}"),
-                        LogKind::Info,
-                    );
+                    self.push_log(format!("started: {id}"), LogKind::Info);
                 }
 
                 GuiEvent::JobFinished(id, kind, duration) => {
@@ -345,17 +309,13 @@ impl CoreForgeApp {
                     };
 
                     let detail = match &kind {
-                        JobOutcomeKind::Failed(reason)
-                        | JobOutcomeKind::Skipped(reason) => {
+                        JobOutcomeKind::Failed(reason) | JobOutcomeKind::Skipped(reason) => {
                             format!(" - {reason}")
                         }
                         JobOutcomeKind::Success => String::new(),
                     };
 
-                    self.push_log(
-                        format!("[{tag}] {id} ({duration:.2?}){detail}"),
-                        log_kind,
-                    );
+                    self.push_log(format!("[{tag}] {id} ({duration:.2?}){detail}"), log_kind);
                 }
 
                 GuiEvent::RunFinished(result) => {
@@ -363,16 +323,10 @@ impl CoreForgeApp {
 
                     match result {
                         Ok(summary) => {
-                            self.push_log(
-                                summary.to_string(),
-                                LogKind::Success,
-                            );
+                            self.push_log(summary.to_string(), LogKind::Success);
                         }
                         Err(error) => {
-                            self.push_log(
-                                format!("Error: {error}"),
-                                LogKind::Error,
-                            );
+                            self.push_log(format!("Error: {error}"), LogKind::Error);
                         }
                     }
                 }
@@ -383,17 +337,12 @@ impl CoreForgeApp {
                     match result {
                         Ok(count) => {
                             self.push_log(
-                                format!(
-                                    "Clean completed: {count} modules cleaned."
-                                ),
+                                format!("Clean completed: {count} modules cleaned."),
                                 LogKind::Success,
                             );
                         }
                         Err(error) => {
-                            self.push_log(
-                                format!("Error: {error}"),
-                                LogKind::Error,
-                            );
+                            self.push_log(format!("Error: {error}"), LogKind::Error);
                         }
                     }
                 }
@@ -404,17 +353,12 @@ impl CoreForgeApp {
                     match result {
                         Ok(count) => {
                             self.push_log(
-                                format!(
-                                    "Workspace sync completed: {count} repos pinned."
-                                ),
+                                format!("Workspace sync completed: {count} repos pinned."),
                                 LogKind::Success,
                             );
                         }
                         Err(error) => {
-                            self.push_log(
-                                format!("Error: {error}"),
-                                LogKind::Error,
-                            );
+                            self.push_log(format!("Error: {error}"), LogKind::Error);
                         }
                     }
                 }
@@ -454,19 +398,12 @@ impl eframe::App for CoreForgeApp {
 
         panel_frame.show(ui, |ui| {
             ui.horizontal(|ui| {
-                ui.heading(
-                    egui::RichText::new("CoreForge")
-                        .strong()
-                        .size(22.0),
-                );
+                ui.heading(egui::RichText::new("CoreForge").strong().size(22.0));
 
                 ui.separator();
 
                 if ui
-                    .add_enabled(
-                        !self.busy,
-                        egui::Button::new("Select Folder..."),
-                    )
+                    .add_enabled(!self.busy, egui::Button::new("Select Folder..."))
                     .clicked()
                 {
                     self.pick_root();
@@ -522,281 +459,211 @@ impl eframe::App for CoreForgeApp {
             let available_width = ui.available_width();
             let left_width = (available_width * 0.30).clamp(250.0, 340.0);
 
-            panel_frame
-                .clone()
-                .show(ui, |ui| {
-                    ui.set_width(left_width);
-                    ui.heading("Modules");
+            panel_frame.clone().show(ui, |ui| {
+                ui.set_width(left_width);
+                ui.heading("Modules");
 
-                    ui.add_space(4.0);
-                    ui.separator();
-                    ui.add_space(4.0);
+                ui.add_space(4.0);
+                ui.separator();
+                ui.add_space(4.0);
 
-                    egui::ScrollArea::vertical()
-                        .id_salt("modules_scroll")
-                        .auto_shrink([false, false])
-                        .show(ui, |ui| {
-                            if self.modules.is_empty() {
-                                ui.add_space(8.0);
-                                ui.centered_and_justified(|ui| {
-                                    ui.weak("No modules.");
-                                });
-                            }
+                egui::ScrollArea::vertical()
+                    .id_salt("modules_scroll")
+                    .auto_shrink([false, false])
+                    .show(ui, |ui| {
+                        if self.modules.is_empty() {
+                            ui.add_space(8.0);
+                            ui.centered_and_justified(|ui| {
+                                ui.weak("No modules.");
+                            });
+                        }
 
-                            for module in &self.modules {
-                                egui::Frame::new()
-                                    .fill(egui::Color32::WHITE)
-                                    .inner_margin(egui::Margin::same(8))
-                                    .corner_radius(
-                                        egui::CornerRadius::same(6),
-                                    )
-                                    .stroke(egui::Stroke::new(
-                                        1.0,
-                                        egui::Color32::from_rgb(
-                                            225, 228, 233,
-                                        ),
-                                    ))
-                                    .show(ui, |ui| {
-                                        ui.horizontal(|ui| {
-                                            ui.label(
-                                                egui::RichText::new(
-                                                    module.id.to_string(),
-                                                )
-                                                    .strong(),
-                                            );
-
-                                            ui.separator();
-
-                                            ui.weak(
-                                                module.module_type.to_string(),
-                                            );
-                                        });
-
-                                        let depends =
-                                            if module.depends.is_empty() {
-                                                String::from("-")
-                                            } else {
-                                                module
-                                                    .depends
-                                                    .iter()
-                                                    .map(ToString::to_string)
-                                                    .collect::<Vec<_>>()
-                                                    .join(", ")
-                                            };
-
-                                        ui.add_space(3.0);
-                                        ui.small(
-                                            egui::RichText::new(
-                                                format!(
-                                                    "Depends: {depends}"
-                                                ),
-                                            )
-                                                .color(
-                                                    egui::Color32::from_rgb(
-                                                        100, 110, 125,
-                                                    ),
-                                                ),
+                        for module in &self.modules {
+                            egui::Frame::new()
+                                .fill(egui::Color32::WHITE)
+                                .inner_margin(egui::Margin::same(8))
+                                .corner_radius(egui::CornerRadius::same(6))
+                                .stroke(egui::Stroke::new(
+                                    1.0,
+                                    egui::Color32::from_rgb(225, 228, 233),
+                                ))
+                                .show(ui, |ui| {
+                                    ui.horizontal(|ui| {
+                                        ui.label(
+                                            egui::RichText::new(module.id.to_string()).strong(),
                                         );
+
+                                        ui.separator();
+
+                                        ui.weak(module.module_type.to_string());
                                     });
 
-                                ui.add_space(6.0);
-                            }
-                        });
-                });
+                                    let depends = if module.depends.is_empty() {
+                                        String::from("-")
+                                    } else {
+                                        module
+                                            .depends
+                                            .iter()
+                                            .map(ToString::to_string)
+                                            .collect::<Vec<_>>()
+                                            .join(", ")
+                                    };
+
+                                    ui.add_space(3.0);
+                                    ui.small(
+                                        egui::RichText::new(format!("Depends: {depends}"))
+                                            .color(egui::Color32::from_rgb(100, 110, 125)),
+                                    );
+                                });
+
+                            ui.add_space(6.0);
+                        }
+                    });
+            });
 
             ui.add_space(10.0);
 
             ui.vertical(|ui| {
                 ui.set_width(ui.available_width());
 
-                panel_frame
-                    .clone()
-                    .show(ui, |ui| {
-                        ui.heading("Build Configuration");
-                        ui.add_space(4.0);
-                        ui.separator();
+                panel_frame.clone().show(ui, |ui| {
+                    ui.heading("Build Configuration");
+                    ui.add_space(4.0);
+                    ui.separator();
+                    ui.add_space(8.0);
+
+                    ui.add_enabled_ui(!self.busy, |ui| {
+                        ui.horizontal_wrapped(|ui| {
+                            ui.checkbox(&mut self.release, "Release");
+                            ui.checkbox(&mut self.fail_fast, "Fail-fast");
+                            ui.checkbox(&mut self.dry_run, "Dry-run");
+
+                            ui.separator();
+
+                            ui.label("Jobs:");
+
+                            ui.add(egui::DragValue::new(&mut self.jobs).range(0..=256))
+                                .on_hover_text("0 = automatic CPU count");
+                        });
+
                         ui.add_space(8.0);
 
-                        ui.add_enabled_ui(!self.busy, |ui| {
-                            ui.horizontal_wrapped(|ui| {
-                                ui.checkbox(&mut self.release, "Release");
-                                ui.checkbox(&mut self.fail_fast, "Fail-fast");
-                                ui.checkbox(&mut self.dry_run, "Dry-run");
+                        ui.horizontal(|ui| {
+                            ui.label("Target:");
 
-                                ui.separator();
+                            ui.add(
+                                egui::TextEdit::singleline(&mut self.module_filter)
+                                    .hint_text("Module IDs, comma-separated")
+                                    .desired_width(ui.available_width() - 70.0),
+                            )
+                            .on_hover_text(
+                                "Empty means the whole dependency graph. \
+                                     Clean accepts one module name.",
+                            );
+                        });
 
-                                ui.label("Jobs:");
+                        ui.add_space(10.0);
 
-                                ui.add(
-                                    egui::DragValue::new(&mut self.jobs)
-                                        .range(0..=256),
+                        ui.horizontal_wrapped(|ui| {
+                            if ui
+                                .add_enabled(
+                                    self.root.is_some(),
+                                    egui::Button::new(egui::RichText::new("Build").strong()),
                                 )
-                                    .on_hover_text(
-                                        "0 = automatic CPU count",
-                                    );
-                            });
+                                .clicked()
+                            {
+                                self.run(RunMode::Build);
+                            }
 
+                            if ui
+                                .add_enabled(self.root.is_some(), egui::Button::new("Test"))
+                                .clicked()
+                            {
+                                self.run(RunMode::Test);
+                            }
+
+                            if ui
+                                .add_enabled(self.root.is_some(), egui::Button::new("Package"))
+                                .clicked()
+                            {
+                                self.run(RunMode::Package);
+                            }
+
+                            ui.separator();
+
+                            if ui
+                                .add_enabled(self.root.is_some(), egui::Button::new("Clean"))
+                                .clicked()
+                            {
+                                self.clean();
+                            }
+
+                            if ui
+                                .add_enabled(
+                                    self.root.is_some(),
+                                    egui::Button::new("Workspace Sync"),
+                                )
+                                .clicked()
+                            {
+                                self.workspace_sync();
+                            }
+                        });
+
+                        if self.busy {
                             ui.add_space(8.0);
 
                             ui.horizontal(|ui| {
-                                ui.label("Target:");
-
-                                ui.add(
-                                    egui::TextEdit::singleline(
-                                        &mut self.module_filter,
-                                    )
-                                        .hint_text(
-                                            "Module IDs, comma-separated",
-                                        )
-                                        .desired_width(
-                                            ui.available_width() - 70.0,
-                                        ),
-                                )
-                                    .on_hover_text(
-                                        "Empty means the whole dependency graph. \
-                                     Clean accepts one module name.",
-                                    );
+                                ui.spinner();
+                                ui.label(
+                                    egui::RichText::new("Operation in progress...")
+                                        .color(egui::Color32::from_rgb(80, 90, 105)),
+                                );
                             });
+                        }
+                    });
+                });
 
-                            ui.add_space(10.0);
+                ui.add_space(10.0);
 
-                            ui.horizontal_wrapped(|ui| {
-                                if ui
-                                    .add_enabled(
-                                        self.root.is_some(),
-                                        egui::Button::new(
-                                            egui::RichText::new("Build")
-                                                .strong(),
-                                        ),
-                                    )
-                                    .clicked()
-                                {
-                                    self.run(RunMode::Build);
-                                }
+                panel_frame.clone().show(ui, |ui| {
+                    ui.horizontal(|ui| {
+                        ui.heading("Logs");
 
-                                if ui
-                                    .add_enabled(
-                                        self.root.is_some(),
-                                        egui::Button::new("Test"),
-                                    )
-                                    .clicked()
-                                {
-                                    self.run(RunMode::Test);
-                                }
+                        ui.separator();
 
-                                if ui
-                                    .add_enabled(
-                                        self.root.is_some(),
-                                        egui::Button::new("Package"),
-                                    )
-                                    .clicked()
-                                {
-                                    self.run(RunMode::Package);
-                                }
+                        ui.label(
+                            egui::RichText::new(format!("{} entries", self.log.len()))
+                                .color(egui::Color32::from_rgb(120, 128, 140)),
+                        );
+                    });
 
-                                ui.separator();
+                    ui.add_space(4.0);
+                    ui.separator();
+                    ui.add_space(4.0);
 
-                                if ui
-                                    .add_enabled(
-                                        self.root.is_some(),
-                                        egui::Button::new("Clean"),
-                                    )
-                                    .clicked()
-                                {
-                                    self.clean();
-                                }
-
-                                if ui
-                                    .add_enabled(
-                                        self.root.is_some(),
-                                        egui::Button::new(
-                                            "Workspace Sync",
-                                        ),
-                                    )
-                                    .clicked()
-                                {
-                                    self.workspace_sync();
-                                }
-                            });
-
-                            if self.busy {
+                    egui::ScrollArea::vertical()
+                        .id_salt("log_scroll")
+                        .stick_to_bottom(true)
+                        .auto_shrink([false, false])
+                        .show(ui, |ui| {
+                            if self.log.is_empty() {
                                 ui.add_space(8.0);
+                                ui.weak("No activity yet.");
+                            }
 
+                            for line in &self.log {
                                 ui.horizontal(|ui| {
-                                    ui.spinner();
+                                    ui.label(egui::RichText::new("●").color(line.kind.color()));
+
                                     ui.label(
-                                        egui::RichText::new(
-                                            "Operation in progress...",
-                                        )
-                                            .color(
-                                                egui::Color32::from_rgb(
-                                                    80, 90, 105,
-                                                ),
-                                            ),
+                                        egui::RichText::new(line.text.as_str())
+                                            .monospace()
+                                            .color(line.kind.color()),
                                     );
                                 });
                             }
                         });
-                    });
-
-                ui.add_space(10.0);
-
-                panel_frame
-                    .clone()
-                    .show(ui, |ui| {
-                        ui.horizontal(|ui| {
-                            ui.heading("Logs");
-
-                            ui.separator();
-
-                            ui.label(
-                                egui::RichText::new(
-                                    format!("{} entries", self.log.len()),
-                                )
-                                    .color(
-                                        egui::Color32::from_rgb(
-                                            120, 128, 140,
-                                        ),
-                                    ),
-                            );
-                        });
-
-                        ui.add_space(4.0);
-                        ui.separator();
-                        ui.add_space(4.0);
-
-                        egui::ScrollArea::vertical()
-                            .id_salt("log_scroll")
-                            .stick_to_bottom(true)
-                            .auto_shrink([false, false])
-                            .show(ui, |ui| {
-                                if self.log.is_empty() {
-                                    ui.add_space(8.0);
-                                    ui.weak(
-                                        "No activity yet.",
-                                    );
-                                }
-
-                                for line in &self.log {
-                                    ui.horizontal(|ui| {
-                                        ui.label(
-                                            egui::RichText::new("●")
-                                                .color(line.kind.color()),
-                                        );
-
-                                        ui.label(
-                                            egui::RichText::new(
-                                                line.text.as_str(),
-                                            )
-                                                .monospace()
-                                                .color(
-                                                    line.kind.color(),
-                                                ),
-                                        );
-                                    });
-                                }
-                            });
-                    });
+                });
             });
         });
 
