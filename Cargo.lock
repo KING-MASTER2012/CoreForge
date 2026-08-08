@@ -224,6 +224,7 @@ dependencies = [
  "camino",
  "clap",
  "collector",
+ "config",
  "coreforge-core",
  "executor",
  "indicatif",

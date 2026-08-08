@@ -31,7 +31,7 @@ use petgraph::graph::{DiGraph, NodeIndex};
 use petgraph::visit::EdgeRef;
 
 /// A directed graph of [`Module`]s, linked by their `depends` relationships.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct BuildGraph {
     graph: DiGraph<Module, ()>,
     index_of: HashMap<ModuleId, NodeIndex>,

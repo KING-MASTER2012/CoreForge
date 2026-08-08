@@ -23,3 +23,4 @@ coreforge-core.workspace = true
 toolchain.workspace = true
 logging.workspace = true
 collector.workspace = true
+config.workspace = true
