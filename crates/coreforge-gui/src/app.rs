@@ -117,7 +117,11 @@ impl CoreForgeApp {
         executor::BuildOptions {
             modules,
             release: self.release,
-            jobs: if self.jobs == 0 { None } else { Some(self.jobs) },
+            jobs: if self.jobs == 0 {
+                None
+            } else {
+                Some(self.jobs)
+            },
             fail_fast: self.fail_fast,
         }
     }
@@ -170,7 +174,10 @@ impl CoreForgeApp {
             Ok(build_config) => self.build_config = build_config,
             Err(error) => {
                 self.build_config = None;
-                self.push_log(format!("Failed to read build-system.toml: {error}"), LogKind::Warning);
+                self.push_log(
+                    format!("Failed to read build-system.toml: {error}"),
+                    LogKind::Warning,
+                );
             }
         }
     }
@@ -194,18 +201,23 @@ impl CoreForgeApp {
         thread::spawn(move || {
             let progress = ChannelProgress::new(sender.clone());
             let result = match mode {
-                RunMode::Build => executor::build(&root, &options, build_config.as_ref(), &progress)
-                    .map(|outcome| summarize("Build", &outcome, None)),
+                RunMode::Build => {
+                    executor::build(&root, &options, build_config.as_ref(), &progress)
+                        .map(|outcome| summarize("Build", &outcome, None))
+                }
                 RunMode::Test => executor::test(&root, &options, &progress)
                     .map(|outcome| summarize("Test", &outcome, None)),
                 RunMode::Package => {
-                    executor::package(&root, &options, build_config.as_ref(), &progress)
-                        .map(|(outcome, manifest)| {
+                    executor::package(&root, &options, build_config.as_ref(), &progress).map(
+                        |(outcome, manifest)| {
                             summarize("Package", &outcome, Some(manifest.entries.len()))
-                        })
+                        },
+                    )
                 }
             };
-            let _ = sender.send(GuiEvent::RunFinished(result.map_err(|error| error.to_string())));
+            let _ = sender.send(GuiEvent::RunFinished(
+                result.map_err(|error| error.to_string()),
+            ));
         });
     }
 
@@ -245,7 +257,9 @@ impl CoreForgeApp {
         thread::spawn(move || {
             let result = executor::clean(&root, target.as_deref());
             let _ = sender.send(GuiEvent::CleanFinished(
-                result.map(|cleaned| cleaned.len()).map_err(|error| error.to_string()),
+                result
+                    .map(|cleaned| cleaned.len())
+                    .map_err(|error| error.to_string()),
             ));
         });
     }
@@ -285,10 +299,7 @@ impl CoreForgeApp {
                         }
                         JobOutcomeKind::Success => String::new(),
                     };
-                    self.push_log(
-                        format!("[{tag}] {id} ({duration:.2?}){detail}"),
-                        log_kind,
-                    );
+                    self.push_log(format!("[{tag}] {id} ({duration:.2?}){detail}"), log_kind);
                 }
                 GuiEvent::RunFinished(result) => {
                     self.busy = false;
@@ -414,25 +425,38 @@ impl eframe::App for CoreForgeApp {
                     });
                     ui.horizontal(|ui| {
                         ui.label("Target module(s):");
-                        ui.text_edit_singleline(&mut self.module_filter).on_hover_text(
-                            "Comma-separated module IDs. Empty means whole graph. \
+                        ui.text_edit_singleline(&mut self.module_filter)
+                            .on_hover_text(
+                                "Comma-separated module IDs. Empty means whole graph. \
                              For Clean: a single name or empty.",
-                        );
+                            );
                     });
                     ui.add_space(6.0);
                     ui.horizontal(|ui| {
                         let has_root = self.root.is_some();
-                        if ui.add_enabled(has_root, egui::Button::new("Build")).clicked() {
+                        if ui
+                            .add_enabled(has_root, egui::Button::new("Build"))
+                            .clicked()
+                        {
                             self.run(RunMode::Build);
                         }
-                        if ui.add_enabled(has_root, egui::Button::new("Test")).clicked() {
+                        if ui
+                            .add_enabled(has_root, egui::Button::new("Test"))
+                            .clicked()
+                        {
                             self.run(RunMode::Test);
                         }
-                        if ui.add_enabled(has_root, egui::Button::new("Package")).clicked() {
+                        if ui
+                            .add_enabled(has_root, egui::Button::new("Package"))
+                            .clicked()
+                        {
                             self.run(RunMode::Package);
                         }
                         ui.separator();
-                        if ui.add_enabled(has_root, egui::Button::new("Clean")).clicked() {
+                        if ui
+                            .add_enabled(has_root, egui::Button::new("Clean"))
+                            .clicked()
+                        {
                             self.clean();
                         }
                         ui.separator();

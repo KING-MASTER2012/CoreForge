@@ -9,8 +9,8 @@
 //! spawned [`std::thread`] instead, reporting back through an
 //! `mpsc` channel that `update` drains every frame.
 
-use std::sync::mpsc::Sender;
 use std::sync::Mutex;
+use std::sync::mpsc::Sender;
 use std::time::Duration;
 
 use coreforge_core::ModuleId;
@@ -140,6 +140,10 @@ impl scheduler::ProgressSink for ChannelProgress {
     }
 
     fn job_finished(&self, module: &ModuleId, status: &scheduler::JobStatus, duration: Duration) {
-        self.send(GuiEvent::JobFinished(module.clone(), status.into(), duration));
+        self.send(GuiEvent::JobFinished(
+            module.clone(),
+            status.into(),
+            duration,
+        ));
     }
 }
