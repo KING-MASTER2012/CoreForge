@@ -18,12 +18,8 @@ tracing.workspace = true
 config.workspace = true
 indicatif.workspace = true
 
-inspector.workspace = true
-resolver.workspace = true
-manifest.workspace = true
+executor.workspace = true
 scheduler.workspace = true
-coreforge-workspace.workspace = true
-graph.workspace = true
 coreforge-core.workspace = true
 toolchain.workspace = true
 logging.workspace = true

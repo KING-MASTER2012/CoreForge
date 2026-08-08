@@ -4,11 +4,9 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 use std::time::Duration;
 
-use camino::Utf8PathBuf;
 use clap::Parser;
 use cli::{Cli, Command};
 use coreforge_core::ModuleId;
-use inspector::InspectConfig;
 
 fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
@@ -27,15 +25,13 @@ fn main() -> anyhow::Result<()> {
 
     match cli.command {
         Command::Build(args) => {
-            run_scheduled(&cli.root, &args, &build_config, cli.quiet, "Build", true)?;
+            run_build_like(&cli.root, &args, &build_config, cli.quiet, RunMode::Build)?;
         }
         Command::Test(args) => {
-            run_scheduled(&cli.root, &args, &build_config, cli.quiet, "Test", false)?;
+            run_build_like(&cli.root, &args, &build_config, cli.quiet, RunMode::Test)?;
         }
         Command::Package(args) => {
-            let artifacts =
-                run_scheduled(&cli.root, &args, &build_config, cli.quiet, "Package", true)?;
-            run_collect(&cli.root, &artifacts)?;
+            run_build_like(&cli.root, &args, &build_config, cli.quiet, RunMode::Package)?;
         }
         Command::Clean { module } => run_clean(&cli.root, module.as_deref())?,
         Command::Inspect => run_resolve(&cli.root)?,
@@ -65,41 +61,16 @@ fn load_build_config(cli: &Cli) -> anyhow::Result<Option<config::BuildSystemConf
     Ok(loaded)
 }
 
-/// The build settings actually in effect for this invocation, after
-/// applying CoreForge's precedence rule: CLI flag > `build-system.toml` >
-/// built-in default.
-struct EffectiveSettings {
-    release: bool,
-    /// `0` means "use the number of available CPUs" (passed straight
-    /// through to [`scheduler::SchedulerConfig::parallel_jobs`]).
-    jobs: usize,
-}
-
-fn effective_settings(
-    args: &cli::BuildArgs,
-    build_config: &Option<config::BuildSystemConfig>,
-) -> EffectiveSettings {
-    let config_wants_release = build_config
-        .as_ref()
-        .and_then(|config| config.configuration)
-        .is_some_and(|configuration| configuration == config::Configuration::Release);
-
-    let jobs = args
-        .jobs
-        .or_else(|| {
-            build_config
-                .as_ref()
-                .and_then(|config| config.parallel_jobs)
-        })
-        .unwrap_or(0);
-
-    EffectiveSettings {
-        release: args.release || config_wants_release,
-        jobs,
+fn to_build_options(args: &cli::BuildArgs) -> executor::BuildOptions {
+    executor::BuildOptions {
+        modules: args.modules.clone(),
+        release: args.release,
+        jobs: args.jobs,
+        fail_fast: args.fail_fast,
     }
 }
 
-fn print_build_args(args: &cli::BuildArgs, effective: &EffectiveSettings) {
+fn print_build_args(args: &cli::BuildArgs, effective: &executor::EffectiveSettings) {
     if args.modules.is_empty() {
         println!("  target: whole module graph");
     } else {
@@ -107,11 +78,7 @@ fn print_build_args(args: &cli::BuildArgs, effective: &EffectiveSettings) {
     }
     println!(
         "  configuration: {}",
-        if effective.release {
-            "Release"
-        } else {
-            "Debug"
-        }
+        if effective.release { "Release" } else { "Debug" }
     );
     println!("  dry-run: {}", args.dry_run);
     println!("  fail-fast: {}", args.fail_fast);
@@ -125,50 +92,50 @@ fn print_build_args(args: &cli::BuildArgs, effective: &EffectiveSettings) {
     );
 }
 
-/// Runs the full pipeline over `root` and prints a per-module status
-/// report, returning whatever artifacts the toolchain adapters produced
-/// (empty when `use_toolchain` is `false`). `Build` and `Package` use the
-/// Phase 5 toolchain adapters; `Test`'s adapters aren't implemented yet, so
-/// it still uses the scheduler dry-run runner.
-fn run_scheduled(
+/// Which `executor` entry point [`run_build_like`] should call.
+enum RunMode {
+    Build,
+    /// `coreforge test` doesn't have a real test adapter yet - see
+    /// [`executor::test`].
+    Test,
+    Package,
+}
+
+/// Drives `Build`/`Test`/`Package`: resolves effective settings, either
+/// prints the dry-run plan or runs the pipeline through `executor` with a
+/// live progress display, then prints a summary and exits nonzero on
+/// failure.
+fn run_build_like(
     root: &camino::Utf8Path,
     args: &cli::BuildArgs,
     build_config: &Option<config::BuildSystemConfig>,
     quiet: bool,
-    verb: &str,
-    use_toolchain: bool,
-) -> anyhow::Result<Vec<toolchain::Artifact>> {
-    let effective = effective_settings(args, build_config);
+    mode: RunMode,
+) -> anyhow::Result<()> {
+    let verb = match mode {
+        RunMode::Build => "Build",
+        RunMode::Test => "Test",
+        RunMode::Package => "Package",
+    };
+
+    let options = to_build_options(args);
+    let effective = executor::effective_settings(&options, build_config.as_ref());
     tracing::info!("{verb} command received.");
     print_build_args(args, &effective);
 
-    let inspector_config = InspectConfig::default();
-    let project = resolve_project(root, &inspector_config)?;
-    let selected_graph = (!args.modules.is_empty())
-        .then(|| {
-            let targets = args
-                .modules
-                .iter()
-                .map(|module| ModuleId::from(module.as_str()))
-                .collect::<Vec<_>>();
-            project.graph.dependency_closure(&targets)
-        })
-        .transpose()?;
-    let graph = selected_graph.as_ref().unwrap_or(&project.graph);
-
-    if graph.is_empty() {
-        tracing::info!("No modules found under {root}.");
-        return Ok(Vec::new());
-    }
-
     if args.dry_run {
         tracing::info!("--dry-run: printing the build plan without running anything.");
+        let plan = executor::dry_run(root, &options)?;
+        if plan.order.is_empty() {
+            tracing::info!("No modules found under {root}.");
+            return Ok(());
+        }
         println!("Build order (dependencies first):");
-        for (i, id) in graph.build_order()?.iter().enumerate() {
+        for (i, id) in plan.order.iter().enumerate() {
             println!("  {}. {id}", i + 1);
         }
         println!("Parallel build levels:");
-        for (level, ids) in graph.build_levels()?.iter().enumerate() {
+        for (level, ids) in plan.levels.iter().enumerate() {
             let names = ids
                 .iter()
                 .map(ToString::to_string)
@@ -176,13 +143,8 @@ fn run_scheduled(
                 .join(", ");
             println!("  level {level}: {names}");
         }
-        return Ok(Vec::new());
+        return Ok(());
     }
-
-    let scheduler_config = scheduler::SchedulerConfig {
-        parallel_jobs: effective.jobs,
-        fail_fast: args.fail_fast,
-    };
 
     let cli_progress = CliProgress::new_if_active(quiet);
     let no_progress = scheduler::NoProgress;
@@ -191,48 +153,77 @@ fn run_scheduled(
         None => &no_progress,
     };
 
-    let (report, artifacts) = if use_toolchain {
-        let contexts = build_contexts(&project.module_dirs, root, effective.release);
-        let runner = toolchain::ToolchainRunner::new(contexts);
-        let report =
-            scheduler::run_build_with_progress(graph, &runner, &scheduler_config, progress)?;
-        let artifacts = runner.artifacts();
-        (report, artifacts)
-    } else {
-        tracing::info!(
-            "{verb} tool adapters are not implemented yet; using the scheduler dry-run runner."
-        );
-        let report = scheduler::run_build_with_progress(
-            graph,
-            &scheduler::DryRunRunner,
-            &scheduler_config,
-            progress,
-        )?;
-        (report, Vec::new())
+    let (outcome, dist_manifest) = match mode {
+        RunMode::Build => (
+            executor::build(root, &options, build_config.as_ref(), progress)?,
+            None,
+        ),
+        RunMode::Test => {
+            tracing::info!(
+                "Test adapters are not implemented yet; using the scheduler dry-run runner."
+            );
+            (executor::test(root, &options, progress)?, None)
+        }
+        RunMode::Package => {
+            let (outcome, manifest) =
+                executor::package(root, &options, build_config.as_ref(), progress)?;
+            (outcome, Some(manifest))
+        }
     };
 
     if let Some(cli_progress) = &cli_progress {
         cli_progress.finish();
     } else {
-        for outcome in &report.outcomes {
-            print_outcome(outcome);
+        for job_outcome in &outcome.report.outcomes {
+            print_outcome(job_outcome);
         }
     }
 
-    let succeeded = report
+    let succeeded = outcome
+        .report
         .outcomes
         .iter()
         .filter(|o| o.status.is_success())
         .count();
-    let failed = report.failures().count();
-    let skipped = report.skipped().count();
+    let failed = outcome.report.failures().count();
+    let skipped = outcome.report.skipped().count();
     println!("{verb} finished: {succeeded} succeeded, {failed} failed, {skipped} skipped.");
 
-    if !report.is_success() {
+    if let Some(manifest) = &dist_manifest {
+        print_dist_summary(root, &outcome.artifacts, manifest);
+    }
+
+    if !outcome.report.is_success() {
         std::process::exit(1);
     }
 
-    Ok(artifacts)
+    Ok(())
+}
+
+fn print_dist_summary(
+    root: &camino::Utf8Path,
+    artifacts: &[toolchain::Artifact],
+    manifest: &collector::DistManifest,
+) {
+    if artifacts.is_empty() {
+        tracing::info!("No artifacts to collect.");
+        return;
+    }
+
+    let dist_root = root.join("dist");
+    let collected = manifest.entries.len();
+    println!("Collected {collected}/{} artifact(s) into {dist_root}.", artifacts.len());
+    for entry in &manifest.entries {
+        println!("  - {:<24} {}", entry.module, entry.path);
+    }
+
+    let missing = artifacts.len() - collected;
+    if missing > 0 {
+        tracing::warn!(
+            "{missing} module(s) produced a build output directory but no recognizable \
+             artifact file was found inside it; nothing was copied for them."
+        );
+    }
 }
 
 fn print_outcome(outcome: &scheduler::JobOutcome) {
@@ -312,24 +303,13 @@ impl scheduler::ProgressSink for CliProgress {
     }
 }
 
-/// Runs the Project Inspector (Phase 1) + Manifest parser (Phase 2) over
-/// `root` and prints the resolved modules, including any `coreforge.toml`
-/// overrides and declared dependencies. Note: this only *resolves* modules;
-/// nothing is built yet.
+/// Runs the Project Inspector + Manifest parser + Build Graph over `root`
+/// and prints the resolved modules, including any `coreforge.toml`
+/// overrides and declared dependencies. Builds nothing.
 fn run_resolve(root: &camino::Utf8Path) -> anyhow::Result<()> {
     tracing::info!("Resolving modules under: {root}");
 
-    let inspector_config = InspectConfig::default();
-    let mut modules = if coreforge_workspace::workspace_manifest_exists(root) {
-        resolve_graph(root, &inspector_config)?
-            .modules()
-            .cloned()
-            .collect::<Vec<_>>()
-    } else {
-        manifest::resolve_modules(root, &inspector_config)?
-    };
-    modules.sort_by(|left, right| left.id.0.cmp(&right.id.0));
-
+    let modules = executor::inspect(root)?;
     if modules.is_empty() {
         tracing::info!("No modules found under {root}.");
         return Ok(());
@@ -356,15 +336,12 @@ fn run_resolve(root: &camino::Utf8Path) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Runs the full pipeline (Inspector + Manifest + Build Graph, Phases 1-3)
-/// over `root` and prints the resulting build order and parallel levels.
-/// Note: this only *resolves* the graph; nothing is built yet.
+/// Resolves `root`'s full dependency graph and prints the build order and
+/// parallel levels. Builds nothing.
 fn run_graph(root: &camino::Utf8Path) -> anyhow::Result<()> {
     tracing::info!("Building dependency graph for: {root}");
 
-    let inspector_config = InspectConfig::default();
-    let graph = resolve_graph(root, &inspector_config)?;
-
+    let graph = executor::resolve_graph(root)?;
     if graph.is_empty() {
         tracing::info!("No modules found under {root}.");
         return Ok(());
@@ -390,78 +367,9 @@ fn run_graph(root: &camino::Utf8Path) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn resolve_graph(
-    root: &camino::Utf8Path,
-    inspector_config: &InspectConfig,
-) -> anyhow::Result<graph::BuildGraph> {
-    Ok(resolve_project(root, inspector_config)?.graph)
-}
-
-struct ResolvedProject {
-    graph: graph::BuildGraph,
-    module_dirs: HashMap<ModuleId, Utf8PathBuf>,
-}
-
-fn resolve_project(
-    root: &camino::Utf8Path,
-    inspector_config: &InspectConfig,
-) -> anyhow::Result<ResolvedProject> {
-    if coreforge_workspace::workspace_manifest_exists(root) {
-        let workspace = coreforge_workspace::resolve(root, inspector_config)?;
-        let module_dirs = workspace
-            .graph
-            .modules()
-            .map(|module| {
-                let location = workspace.module_location(&module.id).ok_or_else(|| {
-                    anyhow::anyhow!("workspace module '{}' has no physical location", module.id)
-                })?;
-                Ok((module.id.clone(), location.module_root.clone()))
-            })
-            .collect::<anyhow::Result<HashMap<_, _>>>()?;
-        Ok(ResolvedProject {
-            graph: workspace.graph,
-            module_dirs,
-        })
-    } else {
-        let graph = resolver::resolve(root, inspector_config)?;
-        let module_dirs = graph
-            .modules()
-            .map(|module| (module.id.clone(), root.join(&module.root)))
-            .collect();
-        Ok(ResolvedProject { graph, module_dirs })
-    }
-}
-
-fn build_contexts(
-    module_dirs: &HashMap<ModuleId, Utf8PathBuf>,
-    root: &camino::Utf8Path,
-    release: bool,
-) -> HashMap<ModuleId, toolchain::BuildContext> {
-    let profile = if release {
-        toolchain::BuildProfile::Release
-    } else {
-        toolchain::BuildProfile::Debug
-    };
-    let build_root = root.join(".coreforge").join("build");
-
-    module_dirs
-        .iter()
-        .map(|(id, module_dir)| {
-            (
-                id.clone(),
-                toolchain::BuildContext {
-                    module_dir: module_dir.clone(),
-                    output_dir: build_root.join(id.sanitized()),
-                    profile,
-                },
-            )
-        })
-        .collect()
-}
-
 fn run_workspace_sync(root: &camino::Utf8Path) -> anyhow::Result<()> {
     tracing::info!("Synchronizing workspace under: {root}");
-    let lock = coreforge_workspace::sync(root)?;
+    let lock = executor::workspace_sync(root)?;
     println!(
         "Workspace lock updated: {} Git repository/repositories pinned.",
         lock.resolved.len()
@@ -472,74 +380,16 @@ fn run_workspace_sync(root: &camino::Utf8Path) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Runs the Artifact Collector (Phase 6) over whatever the toolchain
-/// adapters produced, copying each module's recognizable build output into
-/// `root/dist` alongside a `dist-manifest.json`. A module whose managed
-/// build directory doesn't contain a recognizable output file is skipped -
-/// see [`collector::collect`] - and reported as a warning rather than
-/// failing the whole command, since the build itself already succeeded.
-fn run_collect(root: &camino::Utf8Path, artifacts: &[toolchain::Artifact]) -> anyhow::Result<()> {
-    if artifacts.is_empty() {
-        tracing::info!("No artifacts to collect.");
-        return Ok(());
-    }
-
-    let dist_root = root.join("dist");
-    let manifest = collector::collect(artifacts, &dist_root)?;
-    collector::write_manifest(&manifest, &dist_root)?;
-
-    let collected = manifest.entries.len();
-    println!(
-        "Collected {collected}/{} artifact(s) into {dist_root}.",
-        artifacts.len()
-    );
-    for entry in &manifest.entries {
-        println!("  - {:<24} {}", entry.module, entry.path);
-    }
-
-    let missing = artifacts.len() - collected;
-    if missing > 0 {
-        tracing::warn!(
-            "{missing} module(s) produced a build output directory but no recognizable \
-             artifact file was found inside it; nothing was copied for them."
-        );
-    }
-
-    Ok(())
-}
-
 /// Cleans build outputs. Cleaning a single module only removes that
 /// module's own managed build directory; cleaning everything (no module
-/// given) also removes `dist/`, since it aggregates output across every
-/// module and a partial clean would leave it inconsistent.
+/// given) also removes `dist/` - see [`executor::clean`].
 fn run_clean(root: &camino::Utf8Path, module: Option<&str>) -> anyhow::Result<()> {
-    let inspector_config = InspectConfig::default();
-    let project = resolve_project(root, &inspector_config)?;
-    let contexts = build_contexts(&project.module_dirs, root, false);
-    let runner = toolchain::ToolchainRunner::new(contexts);
-
-    let modules = match module {
-        Some(module_id) => {
-            let id = ModuleId::from(module_id);
-            vec![
-                project
-                    .graph
-                    .module(&id)
-                    .ok_or_else(|| anyhow::anyhow!("module not found: {module_id}"))?,
-            ]
-        }
-        None => project.graph.modules().collect(),
-    };
-
-    for module in modules {
-        runner.clean(module)?;
-        tracing::info!("Cleaned managed output for module '{}'.", module.id);
+    let cleaned = executor::clean(root, module)?;
+    for id in &cleaned {
+        tracing::info!("Cleaned managed output for module '{id}'.");
     }
-
     if module.is_none() {
-        collector::clean(&root.join("dist"))?;
         tracing::info!("Cleaned dist/ directory.");
     }
-
     Ok(())
 }
