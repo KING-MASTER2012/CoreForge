@@ -1,5 +1,5 @@
 <div style="text-align: center;">
-  <img src="assets/images/" alt="CoreForge Logo" height="80" />
+  <img src="assets/images/coreforge-emblem.svg" alt="CoreForge Logo" height="250" />
   <h1>CoreForge</h1>
 </div>
 
