@@ -6,6 +6,7 @@ members = [
 ]
 
 [workspace.package]
+version = "0.1.0"
 edition = "2024"
 license = "GPL-3.0-only"
 repository = "https://github.com/KING-MASTER2012/CoreForge"
@@ -42,6 +43,7 @@ tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 eframe = { version = "0.36.1", default-features = true }
 egui = "0.36.1"
 rfd = "0.17.2"
+winresource = "0.1.31"
 
 coreforge-core = { path = "crates/coreforge-core" }
 graph = { path = "crates/graph" }

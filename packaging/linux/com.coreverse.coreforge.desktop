@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=CoreForge
+Comment=Coreverse Engine build system GUI
+Exec=coreforge-gui
+Icon=com.coreverse.coreforge
+Terminal=false
+Categories=Development;Building;
+StartupWMClass=CoreForge

@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Templated by packaging/macos/build-app-bundle.sh, which substitutes
+  __VERSION__ with the release version before this is copied into
+  CoreForge.app/Contents/Info.plist.
+-->
+<plist version="1.0">
+<dict>
+    <key>CFBundleName</key>
+    <string>CoreForge</string>
+    <key>CFBundleDisplayName</key>
+    <string>CoreForge</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.coreverse.coreforge</string>
+    <key>CFBundleVersion</key>
+    <string>__VERSION__</string>
+    <key>CFBundleShortVersionString</key>
+    <string>__VERSION__</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleExecutable</key>
+    <string>coreforge-gui</string>
+    <key>CFBundleIconFile</key>
+    <string>coreforge-emblem.icns</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>11.0</string>
+    <key>LSApplicationCategoryType</key>
+    <string>public.app-category.developer-tools</string>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+    <key>NSHumanReadableCopyright</key>
+    <string>Copyright (C) Coreverse. Licensed under GPL-3.0-only.</string>
+</dict>
+</plist>

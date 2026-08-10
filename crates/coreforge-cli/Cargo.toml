@@ -1,6 +1,6 @@
 [package]
 name = "coreforge-cli"
-version = "0.1.0"
+version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
@@ -9,6 +9,10 @@ authors.workspace = true
 homepage.workspace = true
 categories.workspace = true
 keywords.workspace = true
+
+[[bin]]
+name = "coreforge"
+path = "src/main.rs"
 
 [dependencies]
 clap.workspace = true
@@ -24,3 +28,46 @@ toolchain.workspace = true
 logging.workspace = true
 collector.workspace = true
 config.workspace = true
+
+[build-dependencies]
+winresource.workspace = true
+
+# Packaging metadata for `cargo deb` and `cargo generate-rpm` (Linux
+# distribution, Level 1 - see release.yml). Both are invoked with
+# `--manifest-path crates/coreforge-cli/Cargo.toml` from the workspace
+# root, so every path below is relative to this file's directory.
+# `coreforge-gui`'s binary is pulled in as an extra asset here rather than
+# packaged separately, so Level 1 ships one .deb/.rpm containing both.
+[package.metadata.deb]
+name = "coreforge"
+maintainer = "CoreVerse <opensource@coreverse.dev>"
+copyright = "2026, CoreVerse"
+license-file = ["../../LICENSE", "0"]
+extended-description = """\
+CoreForge is the CoreVerse Engine's build system, project manager, and \
+bootstrapper. Ships two binaries: `coreforge`, a CLI for resolving, \
+building, testing, packaging, and cleaning multi-language, \
+multi-repository projects, and `coreforge-gui`, a companion desktop GUI \
+for the same operations."""
+depends = "$auto"
+recommends = "xdg-desktop-portal"
+section = "devel"
+priority = "optional"
+assets = [
+    ["../../target/release/coreforge", "usr/bin/coreforge", "755"],
+    ["../../target/release/coreforge-gui", "usr/bin/coreforge-gui", "755"],
+    ["../../packaging/linux/com.coreverse.coreforge.desktop", "usr/share/applications/com.coreverse.coreforge.desktop", "644"],
+    ["../../assets/images/coreforge-emblem.png", "usr/share/icons/hicolor/512x512/apps/com.coreverse.coreforge.png", "644"],
+    ["../../assets/images/coreforge-emblem.png", "usr/share/pixmaps/com.coreverse.coreforge.png", "644"],
+]
+
+[package.metadata.generate-rpm]
+name = "coreforge"
+assets = [
+    { source = "../../target/release/coreforge", dest = "/usr/bin/coreforge", mode = "755" },
+    { source = "../../target/release/coreforge-gui", dest = "/usr/bin/coreforge-gui", mode = "755" },
+    { source = "../../packaging/linux/com.coreverse.coreforge.desktop", dest = "/usr/share/applications/com.coreverse.coreforge.desktop", mode = "644" },
+    { source = "../../assets/images/coreforge-emblem.png", dest = "/usr/share/icons/hicolor/512x512/apps/com.coreverse.coreforge.png", mode = "644" },
+    { source = "../../assets/images/coreforge-emblem.png", dest = "/usr/share/pixmaps/com.coreverse.coreforge.png", mode = "644" },
+    { source = "../../LICENSE", dest = "/usr/share/doc/coreforge/LICENSE", mode = "644", doc = true },
+]

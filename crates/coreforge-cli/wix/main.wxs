@@ -1,0 +1,139 @@
+<?xml version='1.0' encoding='windows-1252'?>
+<!--
+  MSI definition for `cargo wix build` (WiX Toolset v3).
+
+  Ships both binaries (coreforge.exe, coreforge-gui.exe) under
+  "Program Files\CoreForge\bin". Two independently-toggleable features:
+    - Binaries (required): the executables themselves.
+    - Path: adds the install directory to the user's PATH so `coreforge`
+      is callable from any terminal. Checked by default - the whole point
+      of a CLI is being on PATH - but the installer UI lets a user
+      uncheck it.
+
+  UpgradeCode below is permanent - do not regenerate it on future
+  releases, or Windows will treat every version as a separate, parallel-
+  installable product instead of an upgrade.
+-->
+<Wix xmlns='http://schemas.microsoft.com/wix/2006/wi'>
+
+    <Product
+        Id='*'
+        Name='CoreForge'
+        UpgradeCode='F823EECC-BC98-4B8B-BE4A-BEFF3D9B2F11'
+        Manufacturer='Coreverse'
+        Language='1033'
+        Codepage='1252'
+        Version='$(var.Version)'>
+
+        <Package Id='*'
+            Keywords='Installer'
+            Description='CoreForge - the Coreverse Engine build system'
+            Manufacturer='Coreverse'
+            InstallerVersion='450'
+            Languages='1033'
+            Compressed='yes'
+            InstallScope='perMachine'
+            SummaryCodepage='1252'/>
+
+        <MajorUpgrade
+            Schedule='afterInstallInitialize'
+            DowngradeErrorMessage='A newer version of [ProductName] is already installed. Setup will now exit.'/>
+
+        <Media Id='1' Cabinet='media1.cab' EmbedCab='yes' DiskPrompt='CD-ROM #1'/>
+        <Property Id='DiskPrompt' Value='CoreForge Installation'/>
+
+        <Icon Id='ProductIcon' SourceFile='..\..\assets\images\coreforge-emblem.ico'/>
+        <Property Id='ARPPRODUCTICON' Value='ProductIcon'/>
+        <Property Id='ARPHELPLINK' Value='https://github.com/KING-MASTER2012/CoreForge'/>
+        <Property Id='ARPURLINFOABOUT' Value='https://github.com/KING-MASTER2012/CoreForge'/>
+
+        <Directory Id='TARGETDIR' Name='SourceDir'>
+            <Directory Id='ProgramFiles64Folder' Name='PFiles'>
+                <Directory Id='APPLICATIONFOLDER' Name='CoreForge'>
+                    <Directory Id='Bin' Name='bin'>
+                        <Component Id='CliBinary' Guid='*' Win64='yes'>
+                            <File
+                                Id='CoreForgeCliExe'
+                                Name='coreforge.exe'
+                                DiskId='1'
+                                Source='$(var.CargoTargetBinDir)\coreforge.exe'
+                                KeyPath='yes'/>
+                        </Component>
+                        <Component Id='GuiBinary' Guid='*' Win64='yes'>
+                            <File
+                                Id='CoreForgeGuiExe'
+                                Name='coreforge-gui.exe'
+                                DiskId='1'
+                                Source='$(var.CargoTargetBinDir)\coreforge-gui.exe'
+                                KeyPath='yes'/>
+                        </Component>
+                        <Component Id='PathEnvironment' Guid='*' Win64='yes'>
+                            <RegistryValue
+                                Root='HKCU'
+                                Key='Software\Coreverse\CoreForge'
+                                Name='PathAdded'
+                                Type='integer'
+                                Value='1'
+                                KeyPath='yes'/>
+                            <Environment
+                                Id='PathAddition'
+                                Name='PATH'
+                                Value='[Bin]'
+                                Permanent='no'
+                                Part='last'
+                                Action='set'
+                                System='yes'/>
+                        </Component>
+                    </Directory>
+                </Directory>
+                <Directory Id='ProgramMenuFolder'>
+                    <Directory Id='ApplicationProgramsFolder' Name='CoreForge'/>
+                </Directory>
+            </Directory>
+        </Directory>
+
+        <DirectoryRef Id='ApplicationProgramsFolder'>
+            <Component Id='ApplicationShortcut' Guid='*' Win64='yes'>
+                <Shortcut
+                    Id='CoreForgeGuiShortcut'
+                    Name='CoreForge'
+                    Description='CoreForge - build system GUI'
+                    Target='[Bin]coreforge-gui.exe'
+                    WorkingDirectory='Bin'
+                    Icon='ProductIcon'/>
+                <RemoveFolder Id='ApplicationProgramsFolder' On='uninstall'/>
+                <RegistryValue
+                    Root='HKCU'
+                    Key='Software\Coreverse\CoreForge'
+                    Name='ShortcutInstalled'
+                    Type='integer'
+                    Value='1'
+                    KeyPath='yes'/>
+            </Component>
+        </DirectoryRef>
+
+        <Feature
+            Id='Binaries'
+            Title='CoreForge'
+            Description='The coreforge and coreforge-gui executables.'
+            Level='1'
+            ConfigurableDirectory='APPLICATIONFOLDER'
+            Absent='disallow'>
+            <ComponentRef Id='CliBinary'/>
+            <ComponentRef Id='GuiBinary'/>
+            <ComponentRef Id='ApplicationShortcut'/>
+        </Feature>
+
+        <Feature
+            Id='Path'
+            Title='Add to PATH'
+            Description='Adds CoreForge to your PATH so `coreforge` can be run from any terminal.'
+            Level='1'>
+            <ComponentRef Id='PathEnvironment'/>
+        </Feature>
+
+        <UIRef Id='WixUI_FeatureTree'/>
+        <WixVariable Id='WixUILicenseRtf' Value='wix\License.rtf'/>
+
+    </Product>
+</Wix>

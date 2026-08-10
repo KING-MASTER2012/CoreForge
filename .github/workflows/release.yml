@@ -8,38 +8,309 @@ on:
             - "v*"
 
 permissions:
-    contents: read
+    contents: write
 
 env:
     CARGO_TERM_COLOR: always
+    RUST_TOOLCHAIN: "1.97.1"
 
 jobs:
-    release:
-        strategy:
-            fail-fast: false
+    # Single source of truth: [workspace.package].version in the root
+    # Cargo.toml. Version strategy is "manual bump" - a human bumps and
+    # commits it before tagging, this job just refuses to continue if the
+    # tag and Cargo.toml disagree, rather than silently shipping a
+    # mismatched version.
+    check-version:
+        runs-on: ubuntu-latest
+        outputs:
+            version: ${{ steps.version.outputs.version }}
+        steps:
+            - uses: actions/checkout@v5
 
-            matrix:
-                os:
-                    - ubuntu-latest
-                    - windows-latest
-                    - macos-latest
+            - name: Determine and verify version
+              id: version
+              shell: bash
+              run: |
+                  CARGO_VERSION=$(grep -m1 '^version = ' Cargo.toml | sed -E 's/version = "(.*)"/\1/')
+                  echo "Cargo.toml version: $CARGO_VERSION"
 
-        runs-on: ${{ matrix.os }}
+                  if [ "${{ github.event_name }}" = "push" ]; then
+                    TAG_VERSION="${GITHUB_REF_NAME#v}"
+                    echo "Tag version: $TAG_VERSION"
+                    if [ "$TAG_VERSION" != "$CARGO_VERSION" ]; then
+                      echo "::error::Tag ${GITHUB_REF_NAME} does not match [workspace.package].version ($CARGO_VERSION) in Cargo.toml. Bump the version, commit, then tag."
+                      exit 1
+                    fi
+                  fi
 
+                  echo "version=$CARGO_VERSION" >> "$GITHUB_OUTPUT"
+
+    # --- Linux: .deb (apt), .rpm (dnf/zypper), Arch -bin package, raw tarball ---
+    # Level 1 distribution: files attached to the GitHub Release, installed
+    # manually (`apt install ./coreforge.deb`, etc.) rather than from a
+    # hosted repository. See the release plan for the Level 2/3 follow-up.
+    package-linux:
+        needs: check-version
+        runs-on: ubuntu-latest
+        env:
+            VERSION: ${{ needs.check-version.outputs.version }}
         steps:
             - uses: actions/checkout@v5
 
             - uses: dtolnay/rust-toolchain@master
               with:
-                  toolchain: "1.97.1"
+                  toolchain: ${{ env.RUST_TOOLCHAIN }}
 
             - uses: Swatinem/rust-cache@v2
-
-            - name: Build Release
-              run: cargo build --workspace --release --all-features
-
-            - name: Upload Artifact
-              uses: actions/upload-artifact@v4
               with:
-                  name: coreforge-${{ matrix.os }}
-                  path: target/release/
+                  key: linux-x86_64
+
+            - name: Install Linux build dependencies (winit/eframe)
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install -y \
+                    libxkbcommon-dev libwayland-dev libx11-dev libxrandr-dev \
+                    libxi-dev libxcursor-dev libgl1-mesa-dev
+
+            - name: Build release binaries
+              run: cargo build --release --package coreforge-cli --package coreforge-gui
+
+            - name: Install packaging tools
+              run: cargo install cargo-deb cargo-generate-rpm --locked
+
+            - name: Build .deb
+              run: |
+                  cargo deb --no-build \
+                    --manifest-path crates/coreforge-cli/Cargo.toml \
+                    -o "target/coreforge_${VERSION}_amd64.deb"
+
+            - name: Build .rpm
+              run: |
+                  cargo generate-rpm \
+                    --manifest-path crates/coreforge-cli/Cargo.toml \
+                    -o "target/coreforge-${VERSION}-1.x86_64.rpm"
+
+            - name: Stage raw tarball (also feeds the Arch -bin package)
+              run: |
+                  mkdir -p stage
+                  cp target/release/coreforge target/release/coreforge-gui stage/
+                  cp packaging/linux/com.coreverse.coreforge.desktop stage/
+                  cp assets/images/coreforge-emblem.png stage/
+                  cp LICENSE stage/
+                  tar -C stage -czf "target/coreforge-x86_64-unknown-linux-gnu.tar.gz" .
+
+            - name: Build Arch package (-bin)
+              run: |
+                  SHA256=$(sha256sum target/coreforge-x86_64-unknown-linux-gnu.tar.gz | cut -d' ' -f1)
+                  mkdir -p target/arch
+                  sed -e "s/__VERSION__/${VERSION}/g" -e "s/__SHA256__/${SHA256}/g" \
+                    packaging/arch/PKGBUILD.template > target/arch/PKGBUILD
+                  docker run --rm -v "${PWD}/target/arch:/work" -w /work archlinux:base-devel bash -c "
+                    useradd -m builder &&
+                    chown -R builder:builder /work &&
+                    su builder -c 'makepkg -f --nosign'
+                  "
+                  mv target/arch/*.pkg.tar.zst target/
+
+            - uses: actions/upload-artifact@v4
+              with:
+                  name: release-linux
+                  if-no-files-found: error
+                  path: |
+                      target/*.deb
+                      target/*.rpm
+                      target/*.tar.gz
+                      target/*.pkg.tar.zst
+
+    # --- Windows: MSI (cargo-wix), feeds Winget ---
+    package-windows:
+        needs: check-version
+        runs-on: windows-latest
+        env:
+            VERSION: ${{ needs.check-version.outputs.version }}
+        steps:
+            - uses: actions/checkout@v5
+
+            - uses: dtolnay/rust-toolchain@master
+              with:
+                  toolchain: ${{ env.RUST_TOOLCHAIN }}
+
+            - uses: Swatinem/rust-cache@v2
+              with:
+                  key: windows-x86_64
+
+            - name: Build release binaries
+              run: cargo build --release --package coreforge-cli --package coreforge-gui
+
+            - name: Install cargo-wix
+              run: cargo install cargo-wix --locked
+
+            - name: Build MSI
+              run: cargo wix build --package coreforge-cli --nocapture --install-version "${{ env.VERSION }}" -o target/wix/
+
+            - name: Rename MSI
+              shell: bash
+              run: mv target/wix/*.msi "target/wix/coreforge-${VERSION}-x86_64.msi"
+
+            - uses: actions/upload-artifact@v4
+              with:
+                  name: release-windows
+                  if-no-files-found: error
+                  path: target/wix/coreforge-*.msi
+
+    # --- macOS: universal .app + unsigned .pkg, per-arch tarballs for Homebrew ---
+    package-macos:
+        needs: check-version
+        runs-on: macos-latest
+        env:
+            VERSION: ${{ needs.check-version.outputs.version }}
+        steps:
+            - uses: actions/checkout@v5
+
+            - uses: dtolnay/rust-toolchain@master
+              with:
+                  toolchain: ${{ env.RUST_TOOLCHAIN }}
+                  targets: x86_64-apple-darwin,aarch64-apple-darwin
+
+            - uses: Swatinem/rust-cache@v2
+              with:
+                  key: macos-universal
+
+            - name: Build (x86_64)
+              run: cargo build --release --target x86_64-apple-darwin --package coreforge-cli --package coreforge-gui
+
+            - name: Build (aarch64)
+              run: cargo build --release --target aarch64-apple-darwin --package coreforge-cli --package coreforge-gui
+
+            - name: Per-arch tarballs (for Homebrew)
+              run: |
+                  for triple in x86_64-apple-darwin aarch64-apple-darwin; do
+                    mkdir -p "stage-$triple"
+                    cp "target/$triple/release/coreforge" "target/$triple/release/coreforge-gui" "stage-$triple/"
+                    tar -C "stage-$triple" -czf "target/coreforge-$triple.tar.gz" coreforge coreforge-gui
+                  done
+
+            - name: Universal (lipo) binaries for the .app/.pkg
+              run: |
+                  mkdir -p target/universal
+                  lipo -create -output target/universal/coreforge \
+                    target/x86_64-apple-darwin/release/coreforge \
+                    target/aarch64-apple-darwin/release/coreforge
+                  lipo -create -output target/universal/coreforge-gui \
+                    target/x86_64-apple-darwin/release/coreforge-gui \
+                    target/aarch64-apple-darwin/release/coreforge-gui
+
+            - name: Build .app bundle
+              run: |
+                  chmod +x packaging/macos/build-app-bundle.sh
+                  ./packaging/macos/build-app-bundle.sh "$VERSION" target/universal
+
+            - name: Build .pkg (unsigned - no Apple Developer signing/notarization yet)
+              run: |
+                  chmod +x packaging/macos/build-pkg.sh
+                  ./packaging/macos/build-pkg.sh "$VERSION" target/universal "target/CoreForge-${VERSION}.pkg"
+
+            - uses: actions/upload-artifact@v4
+              with:
+                  name: release-macos
+                  if-no-files-found: error
+                  path: |
+                      target/CoreForge-*.pkg
+                      target/coreforge-x86_64-apple-darwin.tar.gz
+                      target/coreforge-aarch64-apple-darwin.tar.gz
+
+    # --- Gather everything, create the GitHub Release ---
+    publish-release:
+        needs: [check-version, package-linux, package-windows, package-macos]
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/download-artifact@v4
+              with:
+                  path: artifacts
+                  pattern: release-*
+                  merge-multiple: true
+
+            - name: Checksums
+              working-directory: artifacts
+              run: sha256sum * > SHA256SUMS.txt
+
+            - name: List staged files
+              run: ls -la artifacts/
+
+            - name: Create GitHub Release
+              uses: softprops/action-gh-release@v2
+              with:
+                  name: CoreForge v${{ needs.check-version.outputs.version }}
+                  tag_name: v${{ needs.check-version.outputs.version }}
+                  draft: false
+                  prerelease: false
+                  generate_release_notes: true
+                  files: artifacts/*
+
+    # --- Winget: automated PR via wingetcreate ---
+    # Only runs the *update* flow (an existing Coreverse.CoreForge manifest
+    # in microsoft/winget-pkgs). The very first submission has to be done
+    # once, by hand, with `wingetcreate new` - see the release plan.
+    # Gated on the repo *variable* WINGET_PACKAGE_EXISTS ("true"/unset) so
+    # this job is a no-op skip until that one-time manual step is done,
+    # and needs a WINGET_TOKEN repo secret (a GitHub PAT with public_repo
+    # scope).
+    winget:
+        needs: [check-version, publish-release]
+        runs-on: windows-latest
+        if: ${{ vars.WINGET_PACKAGE_EXISTS == 'true' }}
+        steps:
+            - name: Install wingetcreate
+              run: Invoke-WebRequest -Uri https://aka.ms/wingetcreate/latest -OutFile wingetcreate.exe
+
+            - name: Submit updated manifest
+              run: |
+                  .\wingetcreate.exe update Coreverse.CoreForge `
+                    --version "${{ needs.check-version.outputs.version }}" `
+                    --urls "https://github.com/KING-MASTER2012/CoreForge/releases/download/v${{ needs.check-version.outputs.version }}/coreforge-${{ needs.check-version.outputs.version }}-x86_64.msi" `
+                    --submit `
+                    --token "${{ secrets.WINGET_TOKEN }}"
+
+    # --- Homebrew tap: push the rendered formula straight to the tap repo ---
+    # Gated on the repo variable HOMEBREW_TAP_ENABLED, and needs a
+    # HOMEBREW_TAP_TOKEN repo secret (a GitHub PAT with repo scope on
+    # KING-MASTER2012/homebrew-CoreForge).
+    homebrew-tap:
+        needs: [check-version, publish-release, package-macos]
+        runs-on: ubuntu-latest
+        if: ${{ vars.HOMEBREW_TAP_ENABLED == 'true' }}
+        steps:
+            - uses: actions/checkout@v5
+              with:
+                  path: coreforge
+
+            - uses: actions/checkout@v5
+              with:
+                  repository: KING-MASTER2012/homebrew-CoreForge
+                  token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+                  path: tap
+
+            - uses: actions/download-artifact@v4
+              with:
+                  name: release-macos
+                  path: dl
+
+            - name: Render formula
+              run: |
+                  ARM64_SHA=$(sha256sum dl/coreforge-aarch64-apple-darwin.tar.gz | cut -d' ' -f1)
+                  X64_SHA=$(sha256sum dl/coreforge-x86_64-apple-darwin.tar.gz | cut -d' ' -f1)
+                  mkdir -p tap/Formula
+                  sed \
+                    -e "s/__VERSION__/${{ needs.check-version.outputs.version }}/g" \
+                    -e "s/__SHA256_ARM64__/$ARM64_SHA/g" \
+                    -e "s/__SHA256_X86_64__/$X64_SHA/g" \
+                    coreforge/packaging/homebrew/coreforge.rb.template > tap/Formula/coreforge.rb
+
+            - name: Commit and push
+              working-directory: tap
+              run: |
+                  git config user.name "coreforge-release-bot"
+                  git config user.email "actions@users.noreply.github.com"
+                  git add Formula/coreforge.rb
+                  git commit -m "coreforge ${{ needs.check-version.outputs.version }}" || echo "Nothing to commit"
+                  git push

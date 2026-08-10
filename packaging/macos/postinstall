@@ -1,0 +1,14 @@
+#!/bin/bash
+# Runs after CoreForge.app is copied into /Applications by the .pkg
+# installer. Symlinks the bundled `coreforge` CLI binary onto the system
+# PATH, the same way tools like VS Code's `code` command do it.
+set -euo pipefail
+
+APP_BINARY="/Applications/CoreForge.app/Contents/MacOS/coreforge"
+LINK_DIR="/usr/local/bin"
+LINK_PATH="$LINK_DIR/coreforge"
+
+mkdir -p "$LINK_DIR"
+ln -sf "$APP_BINARY" "$LINK_PATH"
+
+exit 0

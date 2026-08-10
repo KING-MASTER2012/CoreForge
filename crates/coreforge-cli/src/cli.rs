@@ -11,7 +11,7 @@ use clap::{Parser, Subcommand};
 #[command(
     name = "coreforge",
     version,
-    about = "CoreForge - build orchestrator for CoreVerse Engine",
+    about = "CoreForge - build orchestrator for Coreverse Engine",
     long_about = None
 )]
 pub struct Cli {

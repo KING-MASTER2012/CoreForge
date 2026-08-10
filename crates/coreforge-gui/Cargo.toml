@@ -1,6 +1,6 @@
 [package]
 name = "coreforge-gui"
-version = "0.1.0"
+version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
@@ -20,6 +20,9 @@ coreforge-core.workspace = true
 scheduler.workspace = true
 executor.workspace = true
 config.workspace = true
+
+[build-dependencies]
+winresource.workspace = true
 
 [lints]
 workspace = true

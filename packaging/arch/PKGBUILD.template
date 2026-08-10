@@ -1,0 +1,33 @@
+# Maintainer: Coreverse <opensource@coreverse.dev>
+#
+# Templated by release.yml: __VERSION__ and __SHA256__ are substituted
+# with the release version and the sha256 of
+# coreforge-x86_64-unknown-linux-gnu.tar.gz before `makepkg` runs. This is
+# the "-bin" convention (repackages our own CI-built binaries rather than
+# compiling from source) - fast, and consistent with the Level 1 Linux
+# distribution used for .deb/.rpm. A from-source PKGBUILD for a real AUR
+# submission is a separate, later effort (see the release plan).
+pkgname=coreforge-bin
+pkgver=__VERSION__
+pkgrel=1
+pkgdesc="Coreverse Engine build system (CLI + GUI)"
+arch=('x86_64')
+url="https://github.com/KING-MASTER2012/CoreForge"
+license=('GPL-3.0-only')
+provides=('coreforge')
+conflicts=('coreforge')
+depends=('gcc-libs' 'glibc')
+optdepends=('xdg-desktop-portal: folder picker in coreforge-gui')
+source=("https://github.com/KING-MASTER2012/CoreForge/releases/download/v${pkgver}/coreforge-x86_64-unknown-linux-gnu.tar.gz")
+sha256sums=('__SHA256__')
+
+package() {
+    install -Dm755 "$srcdir/coreforge" "$pkgdir/usr/bin/coreforge"
+    install -Dm755 "$srcdir/coreforge-gui" "$pkgdir/usr/bin/coreforge-gui"
+    install -Dm644 "$srcdir/com.coreverse.coreforge.desktop" \
+        "$pkgdir/usr/share/applications/com.coreverse.coreforge.desktop"
+    install -Dm644 "$srcdir/coreforge-emblem.png" \
+        "$pkgdir/usr/share/icons/hicolor/512x512/apps/com.coreverse.coreforge.png"
+    install -Dm644 "$srcdir/LICENSE" \
+        "$pkgdir/usr/share/licenses/coreforge-bin/LICENSE"
+}
