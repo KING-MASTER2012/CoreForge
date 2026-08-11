@@ -143,6 +143,16 @@ jobs:
                     '
 
                   mv target/arch/*.pkg.tar.zst target/
+                  
+            - uses: actions/upload-artifact@v4
+              with:
+                  name: release-linux
+                  if-no-files-found: error
+                  path: |
+                      target/coreforge_${VERSION}_amd64.deb
+                      target/coreforge-${VERSION}-1.x86_64.rpm
+                      target/coreforge-x86_64-unknown-linux-gnu.tar.gz
+                      target/coreforge-*.pkg.tar.zst
 
     # --- Windows: MSI (cargo-wix), feeds Winget ---
     package-windows:
