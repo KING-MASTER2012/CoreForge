@@ -97,18 +97,39 @@ jobs:
                   cp LICENSE stage/
                   tar -C stage -czf "target/coreforge-x86_64-unknown-linux-gnu.tar.gz" .
 
-            - name: Build Arch Package (-bin)
+            - name: Build Arch package (-bin)
               run: |
-                 SHA256=$(sha256sum target/coreforge-x86_64-unknown-linux-gnu.tar.gz | cut -d' ' -f1)
-                 mkdir -p target/arch
-                 sed -e "s/__VERSION__/${VERSION}/g" -e "s/__SHA256__/${SHA256}/g" \
-                   packaging/arch/PKGBUILD.template > target/arch/PKGBUILD
-                 docker run --rm -v "${PWD}/target/arch:/work" -w /work archlinux:base-devel bash -c "
-                   useradd -m builder &&
-                   chown -R builder:builder /work &&
-                   su builder -c 'makepkg -f --nosign'
-                 "
-                 mv target/arch/*.pkg.tar.zst target/
+               SHA256=$(sha256sum target/coreforge-x86_64-unknown-linux-gnu.tar.gz | cut -d' ' -f1)
+
+               mkdir -p target/arch
+
+                sed \
+                 -e "s/__VERSION__/${VERSION}/g" \
+                 -e "s/__SHA256__/${SHA256}/g" \
+                 packaging/arch/PKGBUILD.template \
+                 > target/arch/PKGBUILD
+
+                cp target/coreforge-x86_64-unknown-linux-gnu.tar.gz \
+                 target/arch/coreforge-x86_64-unknown-linux-gnu.tar.gz
+
+                docker run --rm \
+                 -v "${PWD}/target/arch:/work" \
+                 -w /work \
+                 archlinux:base-devel \
+                 bash -c '
+                   useradd -m builder
+                   chown -R builder:builder /work
+
+                   su builder -c "
+                     echo \"=== Arch build directory ===\"
+                     ls -la /work
+                     echo \"============================\"
+
+                     makepkg -f --nosign
+                  "
+                '
+
+                mv target/arch/*.pkg.tar.zst target/
 
     # --- Windows: MSI (cargo-wix), feeds Winget ---
     package-windows:
