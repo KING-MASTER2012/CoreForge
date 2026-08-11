@@ -85,10 +85,8 @@ jobs:
                     -o "target/coreforge_${VERSION}_amd64.deb"
 
             - name: Build .rpm
-              run: |
-                  cargo generate-rpm \
-                    --manifest-path crates/coreforge-cli/Cargo.toml \
-                    -o "target/coreforge-${VERSION}-1.x86_64.rpm"
+              working-directory: crates/coreforge-cli
+              run: cargo generate-rpm -o "../../target/coreforge-${VERSION}-1.x86_64.rpm"
 
             - name: Stage raw tarball (also feeds the Arch -bin package)
               run: |
@@ -146,7 +144,7 @@ jobs:
               run: cargo install cargo-wix --locked
 
             - name: Build MSI
-              run: cargo wix build --package coreforge-cli --nocapture --install-version "${{ env.VERSION }}" -o target/wix/
+              run: cargo wix --package coreforge-cli --nocapture --install-version "${{ env.VERSION }}" -o target/wix/
 
             - name: Rename MSI
               shell: bash
