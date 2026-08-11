@@ -136,7 +136,7 @@ jobs:
                       "
 
                       echo "=== Restoring runner ownership ==="
-                      chown "${HOST_UID}:${HOST_GID}" /work/*.pkg.tar.zst
+                      chown -R "${HOST_UID}:${HOST_GID}" /work
 
                       echo "=== Generated packages ==="
                       ls -lh /work/*.pkg.tar.zst
