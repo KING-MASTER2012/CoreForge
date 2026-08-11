@@ -1,5 +1,6 @@
 [package]
 name = "coreforge-gui"
+description = "Native graphical interface for CoreForge."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
