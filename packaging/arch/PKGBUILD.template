@@ -18,7 +18,7 @@ provides=('coreforge')
 conflicts=('coreforge')
 depends=('gcc-libs' 'glibc')
 optdepends=('xdg-desktop-portal: folder picker in coreforge-gui')
-source=("https://github.com/KING-MASTER2012/CoreForge/releases/download/v${pkgver}/coreforge-x86_64-unknown-linux-gnu.tar.gz")
+source=("coreforge-x86_64-unknown-linux-gnu.tar.gz")
 sha256sums=('__SHA256__')
 
 package() {

@@ -97,28 +97,18 @@ jobs:
                   cp LICENSE stage/
                   tar -C stage -czf "target/coreforge-x86_64-unknown-linux-gnu.tar.gz" .
 
-            - name: Build Arch package (-bin)
+            - name: Build Arch Package (-bin)
               run: |
-                  SHA256=$(sha256sum target/coreforge-x86_64-unknown-linux-gnu.tar.gz | cut -d' ' -f1)
-                  mkdir -p target/arch
-                  sed -e "s/__VERSION__/${VERSION}/g" -e "s/__SHA256__/${SHA256}/g" \
-                    packaging/arch/PKGBUILD.template > target/arch/PKGBUILD
-                  docker run --rm -v "${PWD}/target/arch:/work" -w /work archlinux:base-devel bash -c "
-                    useradd -m builder &&
-                    chown -R builder:builder /work &&
-                    su builder -c 'makepkg -f --nosign'
-                  "
-                  mv target/arch/*.pkg.tar.zst target/
-
-            - uses: actions/upload-artifact@v4
-              with:
-                  name: release-linux
-                  if-no-files-found: error
-                  path: |
-                      target/*.deb
-                      target/*.rpm
-                      target/*.tar.gz
-                      target/*.pkg.tar.zst
+                 SHA256=$(sha256sum target/coreforge-x86_64-unknown-linux-gnu.tar.gz | cut -d' ' -f1)
+                 mkdir -p target/arch
+                 sed -e "s/__VERSION__/${VERSION}/g" -e "s/__SHA256__/${SHA256}/g" \
+                   packaging/arch/PKGBUILD.template > target/arch/PKGBUILD
+                 docker run --rm -v "${PWD}/target/arch:/work" -w /work archlinux:base-devel bash -c "
+                   useradd -m builder &&
+                   chown -R builder:builder /work &&
+                   su builder -c 'makepkg -f --nosign'
+                 "
+                 mv target/arch/*.pkg.tar.zst target/
 
     # --- Windows: MSI (cargo-wix), feeds Winget ---
     package-windows:

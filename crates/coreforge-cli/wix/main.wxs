@@ -133,7 +133,7 @@
         </Feature>
 
         <UIRef Id='WixUI_FeatureTree'/>
-        <WixVariable Id='WixUILicenseRtf' Value='wix\License.rtf'/>
+        <WixVariable Id='WixUILicenseRtf' Value='License.rtf'/>
 
     </Product>
 </Wix>
