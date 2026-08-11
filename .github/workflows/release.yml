@@ -99,37 +99,50 @@ jobs:
 
             - name: Build Arch package (-bin)
               run: |
-               SHA256=$(sha256sum target/coreforge-x86_64-unknown-linux-gnu.tar.gz | cut -d' ' -f1)
+                  SHA256=$(sha256sum target/coreforge-x86_64-unknown-linux-gnu.tar.gz | cut -d' ' -f1)
 
-               mkdir -p target/arch
+                  mkdir -p target/arch
 
-                sed \
-                 -e "s/__VERSION__/${VERSION}/g" \
-                 -e "s/__SHA256__/${SHA256}/g" \
-                 packaging/arch/PKGBUILD.template \
-                 > target/arch/PKGBUILD
+                  sed \
+                    -e "s/__VERSION__/${VERSION}/g" \
+                    -e "s/__SHA256__/${SHA256}/g" \
+                    packaging/arch/PKGBUILD.template \
+                    > target/arch/PKGBUILD
 
-                cp target/coreforge-x86_64-unknown-linux-gnu.tar.gz \
-                 target/arch/coreforge-x86_64-unknown-linux-gnu.tar.gz
+                  cp target/coreforge-x86_64-unknown-linux-gnu.tar.gz \
+                    target/arch/coreforge-x86_64-unknown-linux-gnu.tar.gz
 
-                docker run --rm \
-                 -v "${PWD}/target/arch:/work" \
-                 -w /work \
-                 archlinux:base-devel \
-                 bash -c '
-                   useradd -m builder
-                   chown -R builder:builder /work
+                  HOST_UID=$(id -u)
+                  HOST_GID=$(id -g)
 
-                   su builder -c "
-                     echo \"=== Arch build directory ===\"
-                     ls -la /work
-                     echo \"============================\"
+                  docker run --rm \
+                    -e HOST_UID="${HOST_UID}" \
+                    -e HOST_GID="${HOST_GID}" \
+                    -v "${PWD}/target/arch:/work" \
+                    -w /work \
+                    archlinux:base-devel \
+                    bash -c '
+                      set -e
 
-                     makepkg -f --nosign
-                  "
-                '
+                      useradd -m builder
+                      chown -R builder:builder /work
 
-                mv target/arch/*.pkg.tar.zst target/
+                      su builder -c "
+                        echo \"=== Arch build directory ===\"
+                        ls -la /work
+                        echo \"============================\"
+
+                        makepkg -f --nosign
+                      "
+
+                      echo "=== Restoring runner ownership ==="
+                      chown "${HOST_UID}:${HOST_GID}" /work/*.pkg.tar.zst
+
+                      echo "=== Generated packages ==="
+                      ls -lh /work/*.pkg.tar.zst
+                    '
+
+                  mv target/arch/*.pkg.tar.zst target/
 
     # --- Windows: MSI (cargo-wix), feeds Winget ---
     package-windows:
