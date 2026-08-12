@@ -3,6 +3,7 @@
 //! skipped dependency.
 
 use std::collections::HashSet;
+use std::panic::{self, AssertUnwindSafe};
 use std::time::Instant;
 
 use coreforge_core::ModuleId;
@@ -157,7 +158,14 @@ pub fn run_build_with_progress(
                 .map(|module| {
                     progress.job_started(&module.id);
                     let start = Instant::now();
-                    let status = runner.run(module);
+                    let status = match panic::catch_unwind(AssertUnwindSafe(|| runner.run(module)))
+                    {
+                        Ok(status) => status,
+                        Err(payload) => JobStatus::Failed(format!(
+                            "job panicked: {}",
+                            panic_message(&payload)
+                        )),
+                    };
                     let duration = start.elapsed();
                     progress.job_finished(&module.id, &status, duration);
                     JobOutcome {
@@ -183,6 +191,20 @@ pub fn run_build_with_progress(
     }
 
     Ok(SchedulerReport { outcomes })
+}
+
+/// Extracts a human-readable message from a `catch_unwind` panic payload.
+/// Most panics carry a `&str` or `String` (from `panic!("...")` /
+/// `.unwrap()` / `.expect("...")`); anything else falls back to a generic
+/// message rather than failing to report the panic at all.
+fn panic_message(payload: &(dyn std::any::Any + Send)) -> String {
+    if let Some(message) = payload.downcast_ref::<&str>() {
+        (*message).to_string()
+    } else if let Some(message) = payload.downcast_ref::<String>() {
+        message.clone()
+    } else {
+        "non-string panic payload".to_string()
+    }
 }
 
 fn skipped_outcome(module: ModuleId, reason: &str) -> JobOutcome {

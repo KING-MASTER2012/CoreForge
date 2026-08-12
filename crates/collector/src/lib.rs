@@ -26,7 +26,7 @@ use std::fs;
 use camino::{Utf8Path, Utf8PathBuf};
 use coreforge_core::ModuleId;
 use serde::{Deserialize, Serialize};
-use toolchain::{Artifact, ArtifactKind};
+use toolchain::{Artifact, ArtifactKind, BuildProfile};
 
 /// The filename the Artifact Collector writes at the root of `dist/`.
 pub const DIST_MANIFEST_FILE_NAME: &str = "dist-manifest.json";
@@ -121,7 +121,8 @@ pub fn clean(dist_root: &Utf8Path) -> Result<()> {
 
 fn collect_one(artifact: &Artifact, dist_root: &Utf8Path) -> Result<Option<DistEntry>> {
     let ArtifactKind::Directory = artifact.kind;
-    let Some(source_file) = locate_output_file(&artifact.module, &artifact.path) else {
+    let Some(source_file) = locate_output_file(&artifact.module, &artifact.path, artifact.profile)
+    else {
         return Ok(None);
     };
 
@@ -155,21 +156,33 @@ fn collect_one(artifact: &Artifact, dist_root: &Utf8Path) -> Result<Option<DistE
 /// Finds the single file inside `output_dir` that represents a module's
 /// real build output, trying (in order):
 ///
-/// 1. `{debug,release}/{candidate}` - Cargo's per-profile subdirectories.
+/// 1. `{profile}/{candidate}` - Cargo's per-profile subdirectory *for the
+///    profile the module was actually built with*. `output_dir` is shared
+///    across profiles (a prior build under the other profile may have left
+///    its own `debug/`/`release/` subdirectory behind), so only the
+///    requested profile's subdirectory is trusted here - falling back to
+///    the other profile would silently collect a stale, wrong-profile
+///    binary.
 /// 2. `{candidate}` directly under `output_dir` - CMake and Go place their
-///    output there.
+///    output there, with no profile subdirectory at all.
 /// 3. If exactly one file exists directly under `output_dir`, use it - a
 ///    module with a single, unambiguous output regardless of its name.
 ///
 /// Returns `None` if nothing recognizable is found, so the caller can skip
 /// this module rather than copying an entire build directory.
-fn locate_output_file(module: &ModuleId, output_dir: &Utf8Path) -> Option<Utf8PathBuf> {
+fn locate_output_file(
+    module: &ModuleId,
+    output_dir: &Utf8Path,
+    profile: BuildProfile,
+) -> Option<Utf8PathBuf> {
     let candidates = candidate_names(module);
 
-    for profile_dir in ["release", "debug"] {
-        if let Some(found) = find_named(&output_dir.join(profile_dir), &candidates) {
-            return Some(found);
-        }
+    let profile_dir = match profile {
+        BuildProfile::Debug => "debug",
+        BuildProfile::Release => "release",
+    };
+    if let Some(found) = find_named(&output_dir.join(profile_dir), &candidates) {
+        return Some(found);
     }
 
     if let Some(found) = find_named(output_dir, &candidates) {
@@ -238,10 +251,15 @@ mod tests {
     use std::fs;
 
     fn artifact(module: &str, output_dir: &Utf8Path) -> Artifact {
+        artifact_with_profile(module, output_dir, BuildProfile::Debug)
+    }
+
+    fn artifact_with_profile(module: &str, output_dir: &Utf8Path, profile: BuildProfile) -> Artifact {
         Artifact {
             module: ModuleId::from(module),
             kind: ArtifactKind::Directory,
             path: output_dir.to_path_buf(),
+            profile,
         }
     }
 
@@ -253,13 +271,86 @@ mod tests {
         fs::write(output_dir.join("release").join("engine"), b"pretend binary").unwrap();
 
         let dist_root = dir.join("dist");
-        let manifest = collect(&[artifact("engine", &output_dir)], &dist_root).unwrap();
+        let manifest = collect(
+            &[artifact_with_profile(
+                "engine",
+                &output_dir,
+                BuildProfile::Release,
+            )],
+            &dist_root,
+        )
+            .unwrap();
 
         assert_eq!(manifest.entries.len(), 1);
         let entry = &manifest.entries[0];
         assert_eq!(entry.module, ModuleId::from("engine"));
         assert!(dist_root.join(&entry.path).is_file());
         assert!(!entry.checksum.is_empty());
+
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn collects_a_cargo_style_debug_binary() {
+        let dir = tempdir();
+        let output_dir = dir.join("engine");
+        fs::create_dir_all(output_dir.join("debug")).unwrap();
+        fs::write(output_dir.join("debug").join("engine"), b"pretend binary").unwrap();
+
+        let dist_root = dir.join("dist");
+        let manifest = collect(
+            &[artifact_with_profile(
+                "engine",
+                &output_dir,
+                BuildProfile::Debug,
+            )],
+            &dist_root,
+        )
+            .unwrap();
+
+        assert_eq!(manifest.entries.len(), 1);
+        assert!(dist_root.join(&manifest.entries[0].path).is_file());
+
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// Regression test for the bug where a Debug rebuild of a module that
+    /// had previously been built in Release mode would silently collect
+    /// the stale Release binary instead of the fresh Debug one, because
+    /// `output_dir` is shared across profiles and the old lookup always
+    /// checked `release/` before `debug/` regardless of what was actually
+    /// requested.
+    #[test]
+    fn does_not_fall_back_to_a_stale_binary_from_a_different_profile() {
+        let dir = tempdir();
+        let output_dir = dir.join("engine");
+        fs::create_dir_all(output_dir.join("release")).unwrap();
+        fs::write(
+            output_dir.join("release").join("engine"),
+            b"stale release binary",
+        )
+            .unwrap();
+        fs::create_dir_all(output_dir.join("debug")).unwrap();
+        fs::write(
+            output_dir.join("debug").join("engine"),
+            b"fresh debug binary",
+        )
+            .unwrap();
+
+        let dist_root = dir.join("dist");
+        let manifest = collect(
+            &[artifact_with_profile(
+                "engine",
+                &output_dir,
+                BuildProfile::Debug,
+            )],
+            &dist_root,
+        )
+            .unwrap();
+
+        assert_eq!(manifest.entries.len(), 1);
+        let collected_path = dist_root.join(&manifest.entries[0].path);
+        assert_eq!(fs::read(collected_path).unwrap(), b"fresh debug binary");
 
         fs::remove_dir_all(&dir).unwrap();
     }

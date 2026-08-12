@@ -20,6 +20,12 @@ pub struct Artifact {
     pub kind: ArtifactKind,
     /// Absolute path to the produced artifact.
     pub path: Utf8PathBuf,
+    /// The profile this artifact was actually built with. Lets a consumer
+    /// (the Artifact Collector) know which of Cargo's `debug`/`release`
+    /// subdirectories under `path` holds the real output, instead of
+    /// guessing - `path` itself is shared across profiles and may contain
+    /// stale output from an earlier build under a different profile.
+    pub profile: BuildProfile,
 }
 
 /// The representation of a build artifact.
@@ -278,6 +284,7 @@ fn directory_artifact(module: &Module, context: &BuildContext) -> Artifact {
         module: module.id.clone(),
         kind: ArtifactKind::Directory,
         path: context.output_dir.clone(),
+        profile: context.profile,
     }
 }
 

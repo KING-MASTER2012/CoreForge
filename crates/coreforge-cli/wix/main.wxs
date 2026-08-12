@@ -33,6 +33,7 @@
             Languages='1033'
             Compressed='yes'
             InstallScope='perMachine'
+            Platform='x64'
             SummaryCodepage='1252'/>
 
         <MajorUpgrade
