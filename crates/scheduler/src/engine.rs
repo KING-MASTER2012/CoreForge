@@ -161,10 +161,9 @@ pub fn run_build_with_progress(
                     let status = match panic::catch_unwind(AssertUnwindSafe(|| runner.run(module)))
                     {
                         Ok(status) => status,
-                        Err(payload) => JobStatus::Failed(format!(
-                            "job panicked: {}",
-                            panic_message(&payload)
-                        )),
+                        Err(payload) => {
+                            JobStatus::Failed(format!("job panicked: {}", panic_message(&payload)))
+                        }
                     };
                     let duration = start.elapsed();
                     progress.job_finished(&module.id, &status, duration);

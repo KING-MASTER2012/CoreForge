@@ -254,7 +254,11 @@ mod tests {
         artifact_with_profile(module, output_dir, BuildProfile::Debug)
     }
 
-    fn artifact_with_profile(module: &str, output_dir: &Utf8Path, profile: BuildProfile) -> Artifact {
+    fn artifact_with_profile(
+        module: &str,
+        output_dir: &Utf8Path,
+        profile: BuildProfile,
+    ) -> Artifact {
         Artifact {
             module: ModuleId::from(module),
             kind: ArtifactKind::Directory,
@@ -279,7 +283,7 @@ mod tests {
             )],
             &dist_root,
         )
-            .unwrap();
+        .unwrap();
 
         assert_eq!(manifest.entries.len(), 1);
         let entry = &manifest.entries[0];
@@ -306,7 +310,7 @@ mod tests {
             )],
             &dist_root,
         )
-            .unwrap();
+        .unwrap();
 
         assert_eq!(manifest.entries.len(), 1);
         assert!(dist_root.join(&manifest.entries[0].path).is_file());
@@ -329,13 +333,13 @@ mod tests {
             output_dir.join("release").join("engine"),
             b"stale release binary",
         )
-            .unwrap();
+        .unwrap();
         fs::create_dir_all(output_dir.join("debug")).unwrap();
         fs::write(
             output_dir.join("debug").join("engine"),
             b"fresh debug binary",
         )
-            .unwrap();
+        .unwrap();
 
         let dist_root = dir.join("dist");
         let manifest = collect(
@@ -346,7 +350,7 @@ mod tests {
             )],
             &dist_root,
         )
-            .unwrap();
+        .unwrap();
 
         assert_eq!(manifest.entries.len(), 1);
         let collected_path = dist_root.join(&manifest.entries[0].path);
