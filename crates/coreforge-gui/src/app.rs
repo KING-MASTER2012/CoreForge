@@ -51,6 +51,19 @@ struct LogLine {
     kind: LogKind,
 }
 
+/// What `Clean` should target - see [`CoreForgeApp::clean_target`].
+#[derive(Debug, PartialEq, Eq)]
+enum CleanTarget {
+    /// The "Target" field is empty: clean every module and `dist/`.
+    All,
+    /// The "Target" field names exactly one module: clean only that one.
+    Module(String),
+    /// The "Target" field has more than one, comma-separated module in it
+    /// - not supported by `Clean`, and must not silently fall back to
+    /// `All`.
+    Invalid,
+}
+
 pub struct CoreForgeApp {
     root: Option<Utf8PathBuf>,
     modules: Vec<Module>,
@@ -118,13 +131,26 @@ impl CoreForgeApp {
         }
     }
 
-    fn clean_target(&self) -> Option<String> {
+    /// What `Clean` should target, derived from the "Target" field.
+    ///
+    /// Unlike `Build`/`Test`/`Package`, `executor::clean` only accepts a
+    /// single module name (or `None` for "everything") - it has no
+    /// equivalent of the comma-separated module list those other commands
+    /// take. `Invalid` distinguishes "the field is empty, clean
+    /// everything" from "the field has more than one module in it",
+    /// which must be rejected rather than silently falling back to
+    /// cleaning everything - that would make a targeted, low-stakes clean
+    /// request wipe every module's build output and `dist/` instead,
+    /// with no warning.
+    fn clean_target(&self) -> CleanTarget {
         let trimmed = self.module_filter.trim();
 
-        if trimmed.is_empty() || trimmed.contains(',') {
-            None
+        if trimmed.is_empty() {
+            CleanTarget::All
+        } else if trimmed.contains(',') {
+            CleanTarget::Invalid
         } else {
-            Some(trimmed.to_string())
+            CleanTarget::Module(trimmed.to_string())
         }
     }
 
@@ -194,29 +220,44 @@ impl CoreForgeApp {
         let sender = self.tx.clone();
 
         thread::spawn(move || {
-            let progress = ChannelProgress::new(sender.clone());
+            // Catches a panic anywhere in this pipeline (not just inside a
+            // single scheduled job, which `scheduler` already isolates on
+            // its own) and turns it into a normal `RunFinished` error
+            // instead of letting the thread die silently - otherwise
+            // `sender.send` below would never run, and `self.busy` would
+            // stay `true` forever with no error shown and no way to
+            // recover short of restarting the app.
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let progress = ChannelProgress::new(sender.clone());
 
-            let result = match mode {
-                RunMode::Build => {
-                    executor::build(&root, &options, build_config.as_ref(), &progress)
-                        .map(|outcome| summarize("Build", &outcome, None))
-                }
+                let result = match mode {
+                    RunMode::Build => {
+                        executor::build(&root, &options, build_config.as_ref(), &progress)
+                            .map(|outcome| summarize("Build", &outcome, None))
+                    }
 
-                RunMode::Test => executor::test(&root, &options, &progress)
-                    .map(|outcome| summarize("Test", &outcome, None)),
+                    RunMode::Test => executor::test(&root, &options, &progress)
+                        .map(|outcome| summarize("Test", &outcome, None)),
 
-                RunMode::Package => {
-                    executor::package(&root, &options, build_config.as_ref(), &progress).map(
-                        |(outcome, manifest)| {
-                            summarize("Package", &outcome, Some(manifest.entries.len()))
-                        },
-                    )
-                }
-            };
+                    RunMode::Package => {
+                        executor::package(&root, &options, build_config.as_ref(), &progress).map(
+                            |(outcome, manifest)| {
+                                summarize("Package", &outcome, Some(manifest.entries.len()))
+                            },
+                        )
+                    }
+                };
 
-            let _ = sender.send(GuiEvent::RunFinished(
-                result.map_err(|error| error.to_string()),
-            ));
+                result.map_err(|error| error.to_string())
+            }))
+                .unwrap_or_else(|payload| {
+                    Err(format!(
+                        "panicked: {}",
+                        crate::progress::panic_message(&*payload)
+                    ))
+                });
+
+            let _ = sender.send(GuiEvent::RunFinished(result));
         });
     }
 
@@ -255,7 +296,19 @@ impl CoreForgeApp {
             return;
         };
 
-        let target = self.clean_target();
+        let target = match self.clean_target() {
+            CleanTarget::All => None,
+            CleanTarget::Module(module) => Some(module),
+            CleanTarget::Invalid => {
+                self.push_log(
+                    "Clean accepts a single module name, not a comma-separated list. \
+                     Clear the Target field to clean everything, or enter exactly one \
+                     module.",
+                    LogKind::Error,
+                );
+                return;
+            }
+        };
 
         self.busy = true;
         self.push_log("Clean started.", LogKind::Info);
@@ -263,13 +316,19 @@ impl CoreForgeApp {
         let sender = self.tx.clone();
 
         thread::spawn(move || {
-            let result = executor::clean(&root, target.as_deref());
-
-            let _ = sender.send(GuiEvent::CleanFinished(
-                result
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                executor::clean(&root, target.as_deref())
                     .map(|cleaned| cleaned.len())
-                    .map_err(|error| error.to_string()),
-            ));
+                    .map_err(|error| error.to_string())
+            }))
+                .unwrap_or_else(|payload| {
+                    Err(format!(
+                        "panicked: {}",
+                        crate::progress::panic_message(&*payload)
+                    ))
+                });
+
+            let _ = sender.send(GuiEvent::CleanFinished(result));
         });
     }
 
@@ -284,13 +343,19 @@ impl CoreForgeApp {
         let sender = self.tx.clone();
 
         thread::spawn(move || {
-            let result = executor::workspace_sync(&root);
-
-            let _ = sender.send(GuiEvent::WorkspaceSyncFinished(
-                result
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                executor::workspace_sync(&root)
                     .map(|lock| lock.resolved.len())
-                    .map_err(|error| error.to_string()),
-            ));
+                    .map_err(|error| error.to_string())
+            }))
+                .unwrap_or_else(|payload| {
+                    Err(format!(
+                        "panicked: {}",
+                        crate::progress::panic_message(&*payload)
+                    ))
+                });
+
+            let _ = sender.send(GuiEvent::WorkspaceSyncFinished(result));
         });
     }
 
@@ -556,10 +621,10 @@ impl eframe::App for CoreForgeApp {
                                     .hint_text("Module IDs, comma-separated")
                                     .desired_width(ui.available_width() - 70.0),
                             )
-                            .on_hover_text(
-                                "Empty means the whole dependency graph. \
+                                .on_hover_text(
+                                    "Empty means the whole dependency graph. \
                                      Clean accepts one module name.",
-                            );
+                                );
                         });
 
                         ui.add_space(10.0);
@@ -592,7 +657,15 @@ impl eframe::App for CoreForgeApp {
                             ui.separator();
 
                             if ui
-                                .add_enabled(self.root.is_some(), egui::Button::new("Clean"))
+                                .add_enabled(
+                                    self.root.is_some()
+                                        && self.clean_target() != CleanTarget::Invalid,
+                                    egui::Button::new("Clean"),
+                                )
+                                .on_disabled_hover_text(
+                                    "Clean accepts a single module name, not a \
+                                     comma-separated list.",
+                                )
                                 .clicked()
                             {
                                 self.clean();

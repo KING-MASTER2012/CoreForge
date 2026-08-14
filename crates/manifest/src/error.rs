@@ -70,6 +70,25 @@ pub enum ManifestError {
         source: std::io::Error,
     },
 
+    /// Two modules - from any combination of `BUILD.core`, a native marker
+    /// file, or a `coreforge.toml` `name` override - ended up with the same
+    /// id. `root` on each side is the module's directory relative to the
+    /// repository root, so the message points straight at the offending
+    /// `coreforge.toml`/`BUILD.core` entries instead of just naming the id.
+    #[error(
+        "duplicate module id '{id}': claimed by both '{first_root}' and '{second_root}' - \
+         check for a coreforge.toml 'name' override or BUILD.core target colliding with \
+         another module"
+    )]
+    DuplicateModuleId {
+        /// The id claimed by more than one module.
+        id: String,
+        /// Root directory of the first module found with this id.
+        first_root: String,
+        /// Root directory of the second module found with this id.
+        second_root: String,
+    },
+
     /// A wrapped `walkdir` error encountered while searching for manifest-only modules.
     #[error("failed to walk directory tree: {0}")]
     Walk(#[from] walkdir::Error),

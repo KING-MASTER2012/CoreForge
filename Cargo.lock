@@ -594,7 +594,7 @@ checksum = "fc652a48c352aef3ea3aed32080501cf3ef6ed5da78602a020c991775b0aff04"
 
 [[package]]
 name = "cache"
-version = "0.1.1"
+version = "0.1.2"
 
 [[package]]
 name = "calloop"
@@ -751,7 +751,7 @@ dependencies = [
 
 [[package]]
 name = "collector"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "blake3",
  "camino",
@@ -799,7 +799,7 @@ dependencies = [
 
 [[package]]
 name = "config"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "camino",
  "serde",
@@ -867,7 +867,7 @@ dependencies = [
 
 [[package]]
 name = "coreforge-cli"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "anyhow",
  "camino",
@@ -886,7 +886,7 @@ dependencies = [
 
 [[package]]
 name = "coreforge-core"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "camino",
  "serde",
@@ -895,7 +895,7 @@ dependencies = [
 
 [[package]]
 name = "coreforge-gui"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "camino",
  "config",
@@ -910,7 +910,7 @@ dependencies = [
 
 [[package]]
 name = "coreforge-workspace"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "camino",
  "coreforge-core",
@@ -979,7 +979,7 @@ checksum = "f27ae1dd37df86211c42e150270f82743308803d90a6f6e6651cd730d5e1732f"
 
 [[package]]
 name = "diagnostics"
-version = "0.1.1"
+version = "0.1.2"
 
 [[package]]
 name = "dispatch"
@@ -1293,7 +1293,7 @@ dependencies = [
 
 [[package]]
 name = "executor"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "camino",
  "collector",
@@ -1623,7 +1623,7 @@ dependencies = [
 
 [[package]]
 name = "graph"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "camino",
  "coreforge-core",
@@ -1853,7 +1853,7 @@ dependencies = [
 
 [[package]]
 name = "inspector"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "camino",
  "coreforge-core",
@@ -2077,7 +2077,7 @@ checksum = "0ceec5bc11778974d1bcb055b18002eba7f4b3518b6a0081b3af5f21666da9ad"
 
 [[package]]
 name = "logging"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "indicatif",
  "owo-colors",
@@ -2086,7 +2086,7 @@ dependencies = [
 
 [[package]]
 name = "manifest"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "camino",
  "coreforge-core",
@@ -2786,7 +2786,7 @@ checksum = "b4596b6d070b27117e987119b4dac604f3c58cfb0b191112e24771b2faeac1a6"
 
 [[package]]
 name = "platform"
-version = "0.1.1"
+version = "0.1.2"
 
 [[package]]
 name = "png"
@@ -3039,7 +3039,7 @@ checksum = "19b30a45b0cd0bcca8037f3d0dc3421eaf95327a17cad11964fb8179b4fc4832"
 
 [[package]]
 name = "resolver"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "camino",
  "coreforge-core",
@@ -3140,7 +3140,7 @@ dependencies = [
 
 [[package]]
 name = "scheduler"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "camino",
  "coreforge-core",
@@ -3644,7 +3644,7 @@ checksum = "7d56353a2a665ad0f41a421187180aab746c8c325620617ad883a99a1cbe66d2"
 
 [[package]]
 name = "toolchain"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "camino",
  "coreforge-core",
@@ -3796,7 +3796,7 @@ checksum = "06abde3611657adf66d383f00b093d7faecc7fa57071cce2578660c9f1010821"
 
 [[package]]
 name = "utils"
-version = "0.1.1"
+version = "0.1.2"
 
 [[package]]
 name = "uuid"

@@ -192,11 +192,25 @@ fn locate_output_file(
     single_file_in(output_dir)
 }
 
+/// Returns the file-naming candidates a module's build output might match.
+///
+/// Includes both the module's id as-is and its own local (non-repository-
+/// namespaced) name: `coreforge-workspace` namespaces workspace modules as
+/// `{repository}::{module}` (e.g. `engine::engine`), but the underlying
+/// toolchain (Cargo, CMake, Go) has no notion of that namespace - it names
+/// its output after the module's original, local name (`engine`). Without
+/// searching for the local name too, every workspace-linked module's output
+/// would go unrecognized and be silently skipped by [`collect`]. A
+/// single-repository module has no namespace to begin with, so its local
+/// name and full id are simply the same string.
 fn candidate_names(module: &ModuleId) -> Vec<String> {
     let base = &module.0;
     let sanitized = module.sanitized();
+    let local = module.0.rsplit("::").next().unwrap_or(base.as_str());
+    let local_sanitized = ModuleId::from(local.to_string()).sanitized();
+
     let mut names = Vec::new();
-    for name in [base, &sanitized] {
+    for name in [base.as_str(), sanitized.as_str(), local, local_sanitized.as_str()] {
         names.push(format!("{name}{}", platform::executable_suffix()));
         names.push(format!(
             "{}{name}{}",
@@ -254,11 +268,7 @@ mod tests {
         artifact_with_profile(module, output_dir, BuildProfile::Debug)
     }
 
-    fn artifact_with_profile(
-        module: &str,
-        output_dir: &Utf8Path,
-        profile: BuildProfile,
-    ) -> Artifact {
+    fn artifact_with_profile(module: &str, output_dir: &Utf8Path, profile: BuildProfile) -> Artifact {
         Artifact {
             module: ModuleId::from(module),
             kind: ArtifactKind::Directory,
@@ -272,7 +282,12 @@ mod tests {
         let dir = tempdir();
         let output_dir = dir.join("engine");
         fs::create_dir_all(output_dir.join("release")).unwrap();
-        fs::write(output_dir.join("release").join("engine"), b"pretend binary").unwrap();
+        let binary_name = format!("engine{}", platform::executable_suffix());
+        fs::write(
+            output_dir.join("release").join(&binary_name),
+            b"pretend binary",
+        )
+            .unwrap();
 
         let dist_root = dir.join("dist");
         let manifest = collect(
@@ -283,7 +298,7 @@ mod tests {
             )],
             &dist_root,
         )
-        .unwrap();
+            .unwrap();
 
         assert_eq!(manifest.entries.len(), 1);
         let entry = &manifest.entries[0];
@@ -299,7 +314,12 @@ mod tests {
         let dir = tempdir();
         let output_dir = dir.join("engine");
         fs::create_dir_all(output_dir.join("debug")).unwrap();
-        fs::write(output_dir.join("debug").join("engine"), b"pretend binary").unwrap();
+        let binary_name = format!("engine{}", platform::executable_suffix());
+        fs::write(
+            output_dir.join("debug").join(&binary_name),
+            b"pretend binary",
+        )
+            .unwrap();
 
         let dist_root = dir.join("dist");
         let manifest = collect(
@@ -310,7 +330,7 @@ mod tests {
             )],
             &dist_root,
         )
-        .unwrap();
+            .unwrap();
 
         assert_eq!(manifest.entries.len(), 1);
         assert!(dist_root.join(&manifest.entries[0].path).is_file());
@@ -328,18 +348,19 @@ mod tests {
     fn does_not_fall_back_to_a_stale_binary_from_a_different_profile() {
         let dir = tempdir();
         let output_dir = dir.join("engine");
+        let binary_name = format!("engine{}", platform::executable_suffix());
         fs::create_dir_all(output_dir.join("release")).unwrap();
         fs::write(
-            output_dir.join("release").join("engine"),
+            output_dir.join("release").join(&binary_name),
             b"stale release binary",
         )
-        .unwrap();
+            .unwrap();
         fs::create_dir_all(output_dir.join("debug")).unwrap();
         fs::write(
-            output_dir.join("debug").join("engine"),
+            output_dir.join("debug").join(&binary_name),
             b"fresh debug binary",
         )
-        .unwrap();
+            .unwrap();
 
         let dist_root = dir.join("dist");
         let manifest = collect(
@@ -350,11 +371,53 @@ mod tests {
             )],
             &dist_root,
         )
-        .unwrap();
+            .unwrap();
 
         assert_eq!(manifest.entries.len(), 1);
         let collected_path = dist_root.join(&manifest.entries[0].path);
         assert_eq!(fs::read(collected_path).unwrap(), b"fresh debug binary");
+
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// Regression test for the bug where a workspace-namespaced module
+    /// (e.g. `engine::engine`, produced by `coreforge-workspace`) could
+    /// never be collected: the toolchain names its output after the
+    /// module's *local* name (`engine`), which the old lookup never
+    /// searched for - only the full namespaced id and its sanitized form.
+    #[test]
+    fn collects_a_workspace_namespaced_modules_locally_named_binary() {
+        let dir = tempdir();
+        let output_dir = dir.join("out");
+        fs::create_dir_all(output_dir.join("debug")).unwrap();
+        // Cargo names the binary after the crate's own package name
+        // ("engine"), with no knowledge of the workspace's "engine::engine"
+        // namespacing.
+        let binary_name = format!("engine{}", platform::executable_suffix());
+        fs::write(
+            output_dir.join("debug").join(&binary_name),
+            b"namespaced module binary",
+        )
+            .unwrap();
+
+        let dist_root = dir.join("dist");
+        let manifest = collect(
+            &[artifact_with_profile(
+                "engine::engine",
+                &output_dir,
+                BuildProfile::Debug,
+            )],
+            &dist_root,
+        )
+            .unwrap();
+
+        assert_eq!(manifest.entries.len(), 1);
+        let entry = &manifest.entries[0];
+        assert_eq!(entry.module, ModuleId::from("engine::engine"));
+        assert_eq!(
+            fs::read(dist_root.join(&entry.path)).unwrap(),
+            b"namespaced module binary"
+        );
 
         fs::remove_dir_all(&dir).unwrap();
     }
@@ -429,10 +492,26 @@ mod tests {
     }
 
     fn tempdir() -> Utf8PathBuf {
+        // A timestamp alone isn't a reliable uniqueness key here: `cargo
+        // test` runs tests in parallel threads within the same process (so
+        // `process::id()` is identical for all of them), and on Windows
+        // `SystemTime::now()`'s resolution is coarse enough that two
+        // threads can observe the same nanosecond value. When that
+        // happens, two unrelated tests silently share the same directory -
+        // each thinks it owns it, and whichever one calls
+        // `remove_dir_all` first can race with the other still writing to
+        // it, corrupting both tests (surfaced on Windows as a spurious
+        // `DirectoryNotEmpty` error from a `remove_dir_all` that assumed
+        // it had the directory to itself). A process-wide atomic counter
+        // guarantees a distinct path for every call regardless of clock
+        // resolution.
+        static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let unique = COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+
         let path = Utf8PathBuf::from_path_buf(std::env::temp_dir())
             .unwrap()
             .join(format!(
-                "coreforge-collector-test-{}-{}",
+                "coreforge-collector-test-{}-{}-{unique}",
                 std::process::id(),
                 std::time::SystemTime::now()
                     .duration_since(std::time::SystemTime::UNIX_EPOCH)

@@ -297,8 +297,14 @@ impl scheduler::ProgressSink for CliProgress {
             .remove(&module.0);
         // A module skipped before it ever started (blocked by a failed
         // dependency, or fail-fast) never got a bar from `job_started` -
-        // give it one now so it still gets a visible line.
-        let bar = existing.unwrap_or_else(|| self.multi.add(indicatif::ProgressBar::new_spinner()));
+        // give it one now so it still gets a visible line, styled the
+        // same way as every other bar instead of falling back to
+        // indicatif's plain default spinner template.
+        let bar = existing.unwrap_or_else(|| {
+            let bar = self.multi.add(indicatif::ProgressBar::new_spinner());
+            bar.set_style(logging::job_progress_style());
+            bar
+        });
 
         let (tag, paint_status) = match status {
             scheduler::JobStatus::Success => ("OK", logging::Status::Success),

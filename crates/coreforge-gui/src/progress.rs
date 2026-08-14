@@ -147,3 +147,21 @@ impl scheduler::ProgressSink for ChannelProgress {
         ));
     }
 }
+
+/// Turns a caught panic payload into a readable message, best-effort.
+///
+/// Used to convert a panic on a background worker thread (see
+/// [`crate::app::CoreForgeApp::run`], `clean`, and `workspace_sync`) into a
+/// normal [`GuiEvent`] error, instead of the thread just dying silently -
+/// which would leave the UI's "busy" state stuck forever with no error
+/// shown and no way to recover short of restarting the app.
+#[must_use]
+pub fn panic_message(payload: &(dyn std::any::Any + Send)) -> String {
+    if let Some(message) = payload.downcast_ref::<&str>() {
+        (*message).to_string()
+    } else if let Some(message) = payload.downcast_ref::<String>() {
+        message.clone()
+    } else {
+        "unknown panic payload".to_string()
+    }
+}

@@ -320,7 +320,7 @@ mod tests {
                 rev = "main"
             "#,
         )
-        .unwrap();
+            .unwrap();
 
         let result = read_workspace_file(&root);
         assert!(matches!(
@@ -345,7 +345,7 @@ mod tests {
             server_root.join("coreforge.toml"),
             "name = \"server\"\ndepends = [\"engine::engine\"]",
         )
-        .unwrap();
+            .unwrap();
         fs::write(
             workspace_root.join(WORKSPACE_FILE_NAME),
             r#"
@@ -358,7 +358,7 @@ mod tests {
                 path = "../server"
             "#,
         )
-        .unwrap();
+            .unwrap();
         fs::write(workspace_root.join(WORKSPACE_LOCK_FILE_NAME), "").unwrap();
 
         let workspace = resolve(&workspace_root, &InspectConfig::default()).unwrap();
@@ -398,12 +398,54 @@ mod tests {
                 rev = "main"
             "#,
         )
-        .unwrap();
+            .unwrap();
 
         let result = resolve(&root, &InspectConfig::default());
         assert!(matches!(
             result,
             Err(WorkspaceError::WorkspaceLockMissing(_))
+        ));
+    }
+
+    /// Regression test: a `checkout` directory that exists but isn't a git
+    /// repository at all (e.g. left over from an interrupted sync) must
+    /// produce the clear `ManagedCheckoutMissing` error, not a raw `git`
+    /// command failure.
+    #[test]
+    fn sync_reports_a_clear_error_for_a_non_git_checkout_directory() {
+        let base = temp_dir("sync-non-git-checkout");
+        let workspace_root = base.join("workspace");
+        let source_root = base.join("source");
+        fs::create_dir_all(&workspace_root).unwrap();
+        fs::create_dir_all(&source_root).unwrap();
+        fs::write(source_root.join("Cargo.toml"), "[workspace]").unwrap();
+        run_git(&source_root, &["init", "--quiet"]);
+        run_git(
+            &source_root,
+            &["config", "user.email", "tests@coreforge.dev"],
+        );
+        run_git(&source_root, &["config", "user.name", "CoreForge Tests"]);
+        run_git(&source_root, &["add", "Cargo.toml"]);
+        run_git(&source_root, &["commit", "--quiet", "-m", "initial"]);
+        fs::write(
+            workspace_root.join(WORKSPACE_FILE_NAME),
+            format!(
+                "[[repository]]\nname = \"engine\"\ngit = '{}'\nrev = \"HEAD\"\n",
+                source_root
+            ),
+        )
+            .unwrap();
+
+        // Simulate a leftover, non-git checkout directory (e.g. from an
+        // interrupted sync) at the path `sync` would try to reuse.
+        let checkout = checkout_path(&workspace_root, "engine");
+        fs::create_dir_all(&checkout).unwrap();
+        fs::write(checkout.join("stray-file.txt"), "not a git repo").unwrap();
+
+        let result = sync(&workspace_root);
+        assert!(matches!(
+            result,
+            Err(WorkspaceError::ManagedCheckoutMissing(_))
         ));
     }
 

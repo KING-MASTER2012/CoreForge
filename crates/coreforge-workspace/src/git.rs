@@ -54,6 +54,18 @@ pub(crate) fn verify_pinned_repository(checkout: &Utf8Path, expected_commit: &st
 }
 
 fn ensure_git_checkout(checkout: &Utf8Path) -> Result<()> {
+    // Check for `.git` directly rather than only relying on `git
+    // rev-parse`'s exit code: when `checkout` exists but isn't a git
+    // repository at all (e.g. a leftover directory from an interrupted
+    // sync), `rev-parse --is-inside-work-tree` fails the whole `git`
+    // process rather than returning "false", so the `?` below would
+    // propagate a raw, confusing `WorkspaceError::GitCommand` instead of
+    // this function's intended `ManagedCheckoutMissing`. Checking first
+    // avoids ever spawning `git` for that case.
+    if !checkout.join(".git").exists() {
+        return Err(WorkspaceError::ManagedCheckoutMissing(checkout.to_string()));
+    }
+
     let inside_work_tree = run_git(checkout, &["rev-parse", "--is-inside-work-tree"])?;
     if inside_work_tree.trim() == "true" {
         Ok(())

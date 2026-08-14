@@ -69,7 +69,30 @@ pub fn resolve_modules(root: &Utf8Path, inspector_config: &InspectConfig) -> Res
     modules.extend(manifest_only);
 
     modules.sort_by(|a, b| a.id.0.cmp(&b.id.0));
+    reject_duplicate_ids(&modules)?;
     Ok(modules)
+}
+
+/// Returns an error if two modules - from any combination of `BUILD.core`,
+/// native-marker discovery, or a `coreforge.toml` `name` override - ended up
+/// with the same id.
+///
+/// `modules` must already be sorted by id, so that any duplicates are
+/// adjacent and the reported pair is deterministic.
+fn reject_duplicate_ids(modules: &[Module]) -> Result<()> {
+    for pair in modules.windows(2) {
+        let [first, second] = pair else {
+            unreachable!("windows(2) always yields slices of length 2")
+        };
+        if first.id == second.id {
+            return Err(ManifestError::DuplicateModuleId {
+                id: first.id.0.clone(),
+                first_root: first.root.to_string(),
+                second_root: second.root.to_string(),
+            });
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -114,7 +137,7 @@ mod tests {
                 depends = ["engine"]
             "#,
         )
-        .unwrap();
+            .unwrap();
 
         let modules = resolve_modules(&root, &InspectConfig::default()).unwrap();
 
@@ -188,7 +211,7 @@ mod tests {
                 path = "./migrations"
             "#,
         )
-        .unwrap();
+            .unwrap();
 
         let modules = resolve_modules(&root, &InspectConfig::default()).unwrap();
 
@@ -217,7 +240,7 @@ mod tests {
                 path = "services/api"
             "#,
         )
-        .unwrap();
+            .unwrap();
 
         let result = resolve_modules(&root, &InspectConfig::default());
 
@@ -228,6 +251,24 @@ mod tests {
                 second_name,
                 ..
             }) if first_name == "services" && second_name == "api"
+        ));
+    }
+
+    #[test]
+    fn duplicate_id_from_colliding_manifest_overrides_is_rejected() {
+        let root = temp_dir("duplicate-id-overrides");
+        for dir_name in ["engine-a", "engine-b"] {
+            let dir = root.join(dir_name);
+            fs::create_dir_all(&dir).unwrap();
+            fs::write(dir.join("Cargo.toml"), "[workspace]").unwrap();
+            fs::write(dir.join("coreforge.toml"), r#"name = "shared""#).unwrap();
+        }
+
+        let result = resolve_modules(&root, &InspectConfig::default());
+
+        assert!(matches!(
+            result,
+            Err(ManifestError::DuplicateModuleId { id, .. }) if id == "shared"
         ));
     }
 
@@ -243,7 +284,7 @@ mod tests {
                 path = "missing"
             "#,
         )
-        .unwrap();
+            .unwrap();
 
         let result = resolve_modules(&root, &InspectConfig::default());
 
