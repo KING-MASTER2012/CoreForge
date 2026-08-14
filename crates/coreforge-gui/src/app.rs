@@ -250,12 +250,12 @@ impl CoreForgeApp {
 
                 result.map_err(|error| error.to_string())
             }))
-                .unwrap_or_else(|payload| {
-                    Err(format!(
-                        "panicked: {}",
-                        crate::progress::panic_message(&*payload)
-                    ))
-                });
+            .unwrap_or_else(|payload| {
+                Err(format!(
+                    "panicked: {}",
+                    crate::progress::panic_message(&*payload)
+                ))
+            });
 
             let _ = sender.send(GuiEvent::RunFinished(result));
         });
@@ -321,12 +321,12 @@ impl CoreForgeApp {
                     .map(|cleaned| cleaned.len())
                     .map_err(|error| error.to_string())
             }))
-                .unwrap_or_else(|payload| {
-                    Err(format!(
-                        "panicked: {}",
-                        crate::progress::panic_message(&*payload)
-                    ))
-                });
+            .unwrap_or_else(|payload| {
+                Err(format!(
+                    "panicked: {}",
+                    crate::progress::panic_message(&*payload)
+                ))
+            });
 
             let _ = sender.send(GuiEvent::CleanFinished(result));
         });
@@ -348,12 +348,12 @@ impl CoreForgeApp {
                     .map(|lock| lock.resolved.len())
                     .map_err(|error| error.to_string())
             }))
-                .unwrap_or_else(|payload| {
-                    Err(format!(
-                        "panicked: {}",
-                        crate::progress::panic_message(&*payload)
-                    ))
-                });
+            .unwrap_or_else(|payload| {
+                Err(format!(
+                    "panicked: {}",
+                    crate::progress::panic_message(&*payload)
+                ))
+            });
 
             let _ = sender.send(GuiEvent::WorkspaceSyncFinished(result));
         });
@@ -621,10 +621,10 @@ impl eframe::App for CoreForgeApp {
                                     .hint_text("Module IDs, comma-separated")
                                     .desired_width(ui.available_width() - 70.0),
                             )
-                                .on_hover_text(
-                                    "Empty means the whole dependency graph. \
+                            .on_hover_text(
+                                "Empty means the whole dependency graph. \
                                      Clean accepts one module name.",
-                                );
+                            );
                         });
 
                         ui.add_space(10.0);

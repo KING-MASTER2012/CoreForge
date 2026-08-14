@@ -137,7 +137,7 @@ mod tests {
                 depends = ["engine"]
             "#,
         )
-            .unwrap();
+        .unwrap();
 
         let modules = resolve_modules(&root, &InspectConfig::default()).unwrap();
 
@@ -211,7 +211,7 @@ mod tests {
                 path = "./migrations"
             "#,
         )
-            .unwrap();
+        .unwrap();
 
         let modules = resolve_modules(&root, &InspectConfig::default()).unwrap();
 
@@ -240,7 +240,7 @@ mod tests {
                 path = "services/api"
             "#,
         )
-            .unwrap();
+        .unwrap();
 
         let result = resolve_modules(&root, &InspectConfig::default());
 
@@ -284,7 +284,7 @@ mod tests {
                 path = "missing"
             "#,
         )
-            .unwrap();
+        .unwrap();
 
         let result = resolve_modules(&root, &InspectConfig::default());
 

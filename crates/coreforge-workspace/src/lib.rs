@@ -320,7 +320,7 @@ mod tests {
                 rev = "main"
             "#,
         )
-            .unwrap();
+        .unwrap();
 
         let result = read_workspace_file(&root);
         assert!(matches!(
@@ -345,7 +345,7 @@ mod tests {
             server_root.join("coreforge.toml"),
             "name = \"server\"\ndepends = [\"engine::engine\"]",
         )
-            .unwrap();
+        .unwrap();
         fs::write(
             workspace_root.join(WORKSPACE_FILE_NAME),
             r#"
@@ -358,7 +358,7 @@ mod tests {
                 path = "../server"
             "#,
         )
-            .unwrap();
+        .unwrap();
         fs::write(workspace_root.join(WORKSPACE_LOCK_FILE_NAME), "").unwrap();
 
         let workspace = resolve(&workspace_root, &InspectConfig::default()).unwrap();
@@ -398,7 +398,7 @@ mod tests {
                 rev = "main"
             "#,
         )
-            .unwrap();
+        .unwrap();
 
         let result = resolve(&root, &InspectConfig::default());
         assert!(matches!(
@@ -434,7 +434,7 @@ mod tests {
                 source_root
             ),
         )
-            .unwrap();
+        .unwrap();
 
         // Simulate a leftover, non-git checkout directory (e.g. from an
         // interrupted sync) at the path `sync` would try to reuse.

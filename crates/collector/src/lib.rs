@@ -210,7 +210,12 @@ fn candidate_names(module: &ModuleId) -> Vec<String> {
     let local_sanitized = ModuleId::from(local.to_string()).sanitized();
 
     let mut names = Vec::new();
-    for name in [base.as_str(), sanitized.as_str(), local, local_sanitized.as_str()] {
+    for name in [
+        base.as_str(),
+        sanitized.as_str(),
+        local,
+        local_sanitized.as_str(),
+    ] {
         names.push(format!("{name}{}", platform::executable_suffix()));
         names.push(format!(
             "{}{name}{}",
@@ -268,7 +273,11 @@ mod tests {
         artifact_with_profile(module, output_dir, BuildProfile::Debug)
     }
 
-    fn artifact_with_profile(module: &str, output_dir: &Utf8Path, profile: BuildProfile) -> Artifact {
+    fn artifact_with_profile(
+        module: &str,
+        output_dir: &Utf8Path,
+        profile: BuildProfile,
+    ) -> Artifact {
         Artifact {
             module: ModuleId::from(module),
             kind: ArtifactKind::Directory,
@@ -287,7 +296,7 @@ mod tests {
             output_dir.join("release").join(&binary_name),
             b"pretend binary",
         )
-            .unwrap();
+        .unwrap();
 
         let dist_root = dir.join("dist");
         let manifest = collect(
@@ -298,7 +307,7 @@ mod tests {
             )],
             &dist_root,
         )
-            .unwrap();
+        .unwrap();
 
         assert_eq!(manifest.entries.len(), 1);
         let entry = &manifest.entries[0];
@@ -319,7 +328,7 @@ mod tests {
             output_dir.join("debug").join(&binary_name),
             b"pretend binary",
         )
-            .unwrap();
+        .unwrap();
 
         let dist_root = dir.join("dist");
         let manifest = collect(
@@ -330,7 +339,7 @@ mod tests {
             )],
             &dist_root,
         )
-            .unwrap();
+        .unwrap();
 
         assert_eq!(manifest.entries.len(), 1);
         assert!(dist_root.join(&manifest.entries[0].path).is_file());
@@ -354,13 +363,13 @@ mod tests {
             output_dir.join("release").join(&binary_name),
             b"stale release binary",
         )
-            .unwrap();
+        .unwrap();
         fs::create_dir_all(output_dir.join("debug")).unwrap();
         fs::write(
             output_dir.join("debug").join(&binary_name),
             b"fresh debug binary",
         )
-            .unwrap();
+        .unwrap();
 
         let dist_root = dir.join("dist");
         let manifest = collect(
@@ -371,7 +380,7 @@ mod tests {
             )],
             &dist_root,
         )
-            .unwrap();
+        .unwrap();
 
         assert_eq!(manifest.entries.len(), 1);
         let collected_path = dist_root.join(&manifest.entries[0].path);
@@ -398,7 +407,7 @@ mod tests {
             output_dir.join("debug").join(&binary_name),
             b"namespaced module binary",
         )
-            .unwrap();
+        .unwrap();
 
         let dist_root = dir.join("dist");
         let manifest = collect(
@@ -409,7 +418,7 @@ mod tests {
             )],
             &dist_root,
         )
-            .unwrap();
+        .unwrap();
 
         assert_eq!(manifest.entries.len(), 1);
         let entry = &manifest.entries[0];
